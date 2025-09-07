@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Calorie Tracker{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>
+            <i class="fas fa-chart-line me-2"></i>Dashboard
+        </h2>
+        <p class="text-muted">Track your nutrition and fitness progress</p>
+    </div>
+</div>
+
+<!-- Today's Summary Cards -->
+<div class="row g-4 mb-5">
+    <div class="col-md-3">
+        <div class="card bg-primary">
+            <div class="card-body text-center">
+                <i class="fas fa-fire fa-2x mb-3"></i>
+                <h3 class="mb-1">{{ "%.0f"|format(today.calories_consumed) }}</h3>
+                <p class="mb-0">Calories Consumed</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success">
+            <div class="card-body text-center">
+                <i class="fas fa-running fa-2x mb-3"></i>
+                <h3 class="mb-1">{{ "%.0f"|format(today.calories_burned) }}</h3>
+                <p class="mb-0">Calories Burned</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info">
+            <div class="card-body text-center">
+                <i class="fas fa-balance-scale fa-2x mb-3"></i>
+                <h3 class="mb-1">{{ "%.0f"|format(today.net_calories) }}</h3>
+                <p class="mb-0">Net Calories</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning">
+            <div class="card-body text-center">
+                <i class="fas fa-target fa-2x mb-3"></i>
+                <h3 class="mb-1">{{ "%.0f"|format(user.calculate_tdee()) }}</h3>
+                <p class="mb-0">Daily Goal</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>Weekly Calorie Trends
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="weeklyChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-pie me-2"></i>Today's Macros
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="macroChart" width="300" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Progress and Quick Actions -->
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>Today's Progress
+                </h5>
+            </div>
+            <div class="card-body">
+                {% set goal = user.calculate_tdee() %}
+                {% set progress = (today.calories_consumed / goal * 100) if goal > 0 else 0 %}
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between mb-1">
+                        <small>Calorie Goal Progress</small>
+                        <small>{{ "%.0f"|format(progress) }}%</small>
+                    </div>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: {{ "%.0f"|format(progress) }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="row g-3 text-center">
+                    <div class="col-4">
+                        <div>
+                            <div class="h6 text-primary">{{ today.meals_count }}</div>
+                            <small class="text-muted">Meals</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div>
+                            <div class="h6 text-success">{{ today.activities_count }}</div>
+                            <small class="text-muted">Activities</small>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div>
+                            {% set remaining = goal - today.calories_consumed %}
+                            <div class="h6 text-info">{{ "%.0f"|format(remaining) }}</div>
+                            <small class="text-muted">Remaining</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bolt me-2"></i>Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('main.meals') }}" class="btn btn-primary">
+                        <i class="fas fa-apple-alt me-2"></i>Add Meal
+                    </a>
+                    <a href="{{ url_for('main.activities') }}" class="btn btn-success">
+                        <i class="fas fa-running me-2"></i>Log Activity
+                    </a>
+                    <a href="{{ url_for('main.profile') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-user me-2"></i>Update Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load charts when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    loadWeeklyChart();
+    loadMacroChart();
+});
+
+function loadWeeklyChart() {
+    fetch('/api/weekly_data')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('weeklyChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.dates.map(date => {
+                        const d = new Date(date);
+                        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    }),
+                    datasets: [{
+                        label: 'Calories Consumed',
+                        data: data.calories_consumed,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }, {
+                        label: 'Calories Burned',
+                        data: data.calories_burned,
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => console.error('Error loading weekly chart:', error));
+}
+
+function loadMacroChart() {
+    // Get today's macro data from the template
+    const protein = {{ today.get('protein', 0) }};
+    const carbs = {{ today.get('carbs', 0) }};
+    const fats = {{ today.get('fats', 0) }};
+    
+    // If no macro data, show placeholder
+    if (protein === 0 && carbs === 0 && fats === 0) {
+        const ctx = document.getElementById('macroChart').getContext('2d');
+        ctx.font = '16px Arial';
+        ctx.fillStyle = '#6c757d';
+        ctx.textAlign = 'center';
+        ctx.fillText('No meals logged today', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        return;
+    }
+    
+    const ctx = document.getElementById('macroChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Protein', 'Carbs', 'Fats'],
+            datasets: [{
+                data: [protein * 4, carbs * 4, fats * 9], // Convert to calories
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 206, 86, 0.8)',
+                    'rgba(255, 99, 132, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 206, 86, 1)',
+                    'rgba(255, 99, 132, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

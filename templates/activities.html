@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}Activities - Calorie Tracker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Add Activity Form -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-plus me-2"></i>Log New Activity
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('main.add_activity') }}">
+                    <div class="mb-3">
+                        <label for="activity_text" class="form-label">Describe your activity</label>
+                        <textarea class="form-control" id="activity_text" name="activity_text" rows="3" 
+                                  placeholder="e.g., 30 minutes jogging in the park, Push day workout: 3 sets bench press, 2 sets shoulder press" required></textarea>
+                        <div class="form-text">Describe your activity in natural language. Include duration, intensity, and specific exercises when applicable.</div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Log Activity
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Recent Activities -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Recent Activities
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if activities %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date/Time</th>
+                                    <th>Activity</th>
+                                    <th>Type</th>
+                                    <th>Duration</th>
+                                    <th>Calories Burned</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for activity in activities %}
+                                <tr>
+                                    <td>
+                                        <small>{{ activity.timestamp.strftime('%m/%d %H:%M') }}</small>
+                                    </td>
+                                    <td>
+                                        <span class="fw-medium">{{ activity.activity_text[:50] }}{% if activity.activity_text|length > 50 %}...{% endif %}</span>
+                                        {% if activity.parsed_data and activity.parsed_data.activities %}
+                                            <br><small class="text-muted">
+                                                {% for act in activity.parsed_data.activities[:2] %}
+                                                    {{ act.name }}{% if not loop.last %}, {% endif %}
+                                                {% endfor %}
+                                                {% if activity.parsed_data.activities|length > 2 %}...{% endif %}
+                                            </small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ activity.activity_type.title() }}</span>
+                                        {% if activity.intensity %}
+                                            <br><small class="text-muted">{{ activity.intensity.title() }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if activity.duration %}
+                                            <span class="fw-medium">{{ "%.0f"|format(activity.duration) }}</span>
+                                            <small class="text-muted">min</small>
+                                        {% else %}
+                                            <small class="text-muted">-</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-success">{{ "%.0f"|format(activity.calories_burned) }}</span>
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('main.delete_activity', activity_id=activity.id) }}" 
+                                              style="display: inline;" onsubmit="return confirm('Delete this activity?')">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-running fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No activities logged yet</h6>
+                        <p class="text-muted">Start by logging your first activity above!</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Today's Summary -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-calendar-day me-2"></i>Today's Summary
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="h4 text-success">{{ "%.0f"|format(today.calories_burned) }}</div>
+                            <small class="text-muted">Calories Burned</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="h4 text-info">{{ today.activities_count }}</div>
+                            <small class="text-muted">Activities Logged</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Tips -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>Activity Tips
+                </h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>Include duration for accurate calorie calculation</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>Mention intensity level (light, moderate, vigorous)</small>
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>For strength training, include sets and reps</small>
+                    </li>
+                    <li>
+                        <i class="fas fa-check text-success me-2"></i>
+                        <small>Log activities immediately after completion</small>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Popular Activities -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-star me-2"></i>Popular Activities
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-1">
+                    <button class="btn btn-outline-secondary btn-sm activity-preset" data-activity="30 minutes brisk walking">
+                        Walking
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm activity-preset" data-activity="20 minutes jogging">
+                        Jogging
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm activity-preset" data-activity="45 minutes cycling">
+                        Cycling
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm activity-preset" data-activity="30 minutes swimming">
+                        Swimming
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm activity-preset" data-activity="45 minutes strength training">
+                        Strength
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm activity-preset" data-activity="60 minutes yoga">
+                        Yoga
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Activity preset buttons
+document.querySelectorAll('.activity-preset').forEach(button => {
+    button.addEventListener('click', () => {
+        document.getElementById('activity_text').value = button.dataset.activity;
+    });
+});
+</script>
+{% endblock %}

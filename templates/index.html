@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Welcome - Calorie Tracker{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="text-center mb-5">
+            <h1 class="display-4 mb-3">
+                <i class="fas fa-utensils text-primary me-3"></i>
+                Calorie Tracker
+            </h1>
+            <p class="lead">Track your meals and activities with AI-powered nutrition analysis</p>
+        </div>
+
+        {% if session.user_id %}
+            <!-- User is logged in, show dashboard summary -->
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="card bg-primary">
+                        <div class="card-body text-center">
+                            <i class="fas fa-fire fa-2x mb-3"></i>
+                            <h3>{{ "%.0f"|format(today.calories_consumed) }}</h3>
+                            <p class="mb-0">Calories Consumed</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-success">
+                        <div class="card-body text-center">
+                            <i class="fas fa-running fa-2x mb-3"></i>
+                            <h3>{{ "%.0f"|format(today.calories_burned) }}</h3>
+                            <p class="mb-0">Calories Burned</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card bg-info">
+                        <div class="card-body text-center">
+                            <i class="fas fa-balance-scale fa-2x mb-3"></i>
+                            <h3>{{ "%.0f"|format(today.net_calories) }}</h3>
+                            <p class="mb-0">Net Calories</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <h3>Welcome back, {{ user.name }}!</h3>
+                <p class="text-muted mb-4">Continue tracking your nutrition and fitness journey</p>
+                
+                <div class="d-flex gap-3 justify-content-center flex-wrap">
+                    <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">
+                        <i class="fas fa-chart-line me-2"></i>View Dashboard
+                    </a>
+                    <a href="{{ url_for('main.meals') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-apple-alt me-2"></i>Add Meal
+                    </a>
+                    <a href="{{ url_for('main.activities') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-running me-2"></i>Log Activity
+                    </a>
+                </div>
+            </div>
+        {% else %}
+            <!-- User not logged in, show welcome message -->
+            <div class="row g-4 mb-5">
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-brain fa-3x text-primary mb-3"></i>
+                            <h5>AI-Powered Analysis</h5>
+                            <p class="text-muted">Describe your meals in natural language and get detailed nutrition breakdowns</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-chart-bar fa-3x text-success mb-3"></i>
+                            <h5>Comprehensive Tracking</h5>
+                            <p class="text-muted">Monitor calories, macros, and activity with detailed charts and insights</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-target fa-3x text-info mb-3"></i>
+                            <h5>Personalized Goals</h5>
+                            <p class="text-muted">Set up your profile for personalized calorie calculations and recommendations</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <h3>Get Started Today</h3>
+                <p class="text-muted mb-4">Create your profile to begin tracking your nutrition and fitness journey</p>
+                <a href="{{ url_for('main.profile') }}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-user-plus me-2"></i>Set Up Profile
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>How It Works
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-apple-alt text-primary me-2"></i>Meal Tracking</h6>
+                        <ul class="list-unstyled ms-3">
+                            <li>• Describe meals in natural language</li>
+                            <li>• AI extracts nutrition information</li>
+                            <li>• Track calories, protein, carbs, and fats</li>
+                            <li>• View detailed meal history</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-running text-success me-2"></i>Activity Tracking</h6>
+                        <ul class="list-unstyled ms-3">
+                            <li>• Log activities with descriptions</li>
+                            <li>• AI calculates calories burned</li>
+                            <li>• Personalized based on your profile</li>
+                            <li>• Track workout progress</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
