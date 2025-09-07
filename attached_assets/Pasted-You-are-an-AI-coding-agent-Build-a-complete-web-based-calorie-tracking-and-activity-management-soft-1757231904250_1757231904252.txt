@@ -1,0 +1,123 @@
+You are an AI coding agent. Build a complete web-based calorie tracking and activity management software using the following stack:
+
+Backend: Python + Flask
+
+Database: PostgreSQL
+
+Frontend: HTML, CSS, JavaScript
+
+AI Integration: langchain_groq → ChatGroq for parsing meal/activity descriptions
+
+Environment variables: Store secrets/config in .env (DB connection, API keys, etc.)
+
+Setup: Local setup only (no Docker/Redis).
+
+Software Requirements
+1. User Profile
+
+Collect and store user details (age, gender, weight, height, etc.).
+
+This info is used to calculate calorie burn from activities.
+
+2. Meal Tracking
+
+A user can enter a natural language description of a meal (e.g., “2 boiled eggs” or “3 tandoori paneer sandwiches”).
+
+Use ChatGroq (langchain_groq) to parse:
+
+Extract food items & quantities (g, ml, pieces, servings, etc.).
+
+Estimate calories, macros (protein, carbs, fats), and micros.
+
+Store parsed meals in PostgreSQL (with timestamp).
+
+Create a dashboard to show:
+
+Daily, weekly, monthly logs.
+
+Total daily calories per day (graph + table).
+
+3. Activity Tracking
+
+A user can log an activity description (e.g., “40 min freestyle swimming” or “Push day at gym: 3 chest, 3 shoulder, 2 triceps”).
+
+Use ChatGroq (langchain_groq) to parse:
+
+Extract activity type, duration, sets/reps/weights (if provided).
+
+Calculate calories burned using user profile (age, weight, etc.).
+
+Store activities in PostgreSQL (with timestamp).
+
+Create a dashboard to show:
+
+Daily/weekly/monthly logs of activities.
+
+Calories burned per activity and per day.
+
+4. Architecture & Implementation
+
+Create proper Flask routes for:
+
+/add_meal (POST) → analyze + save meal.
+
+/meals_dashboard (GET) → show meal logs & graphs.
+
+/add_activity (POST) → analyze + save activity.
+
+/activities_dashboard (GET) → show activity logs & graphs.
+
+Use PostgreSQL models for:
+
+User
+
+Meal (meal_text, parsed_data JSON, calories, macros, micros, timestamp)
+
+Activity (activity_text, parsed_data JSON, calories_burned, timestamp)
+
+Use JavaScript for frontend interactivity (forms + graphs).
+
+Use Chart.js (or plain JS) for daily/weekly/monthly calorie graphs.
+
+Add .env for config (DB_URL, API keys, GROQ_MODEL, etc.).
+
+5. AI Integration (LangChain + ChatGroq)
+
+From .env load:
+
+GROQ_API_KEY="your_api_key_here"
+GROQ_MODEL="mixtral-8x7b-32768"  # or relevant
+
+
+Python usage example:
+
+from langchain_groq import ChatGroq
+from langchain.prompts import ChatPromptTemplate
+
+llm = ChatGroq(
+    api_key=os.getenv("GROQ_API_KEY"),
+    model=os.getenv("GROQ_MODEL")
+)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a nutrition and fitness assistant. Parse meals or activities into structured data."),
+    ("user", "{input_text}")
+])
+
+chain = prompt | llm
+response = chain.invoke({"input_text": "2 boiled eggs"})
+
+
+Ensure response JSON includes calories, macros, micros for meals, and calories burned, activity details for activities.
+
+Deliverables
+
+A working Flask app with routes, models, and templates.
+
+PostgreSQL migrations for User, Meal, Activity.
+
+.env file for config.
+
+Frontend dashboards for meals and activities with interactive graphs.
+
+Documentation (README.md) explaining setup and usage.
