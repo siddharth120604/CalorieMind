@@ -1,7 +1,7 @@
 /* Custom styles for Calorie Tracker */
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
 
 /* Custom card hover effects */
@@ -71,6 +71,22 @@ body {
     width: 100%;
 }
 
+/* Formal UI polish */
+.navbar-brand { font-weight: 600; letter-spacing: 0.2px; }
+.card { border-radius: 10px; }
+.card-header { background: rgba(255,255,255,0.02); font-weight: 600; }
+.list-group-item { background: transparent; border: none; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.sidebar { width: 220px; }
+
+.macro-caption {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.7);
+    margin-top: 0.75rem;
+}
+
+.dashboard-tiles .card { border-radius: 12px; padding: 1rem; }
+.dashboard-tiles .card .h3 { font-size: 2rem; }
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .card-body {
@@ -138,4 +154,39 @@ footer {
 
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.5);
+}
+
+/* Sidebar improvements */
+.sidebar {
+    background-color: #0b0c13; /* slightly different from page background */
+    border-right: 1px solid rgba(255,255,255,0.04);
+    box-shadow: 4px 0 12px rgba(0,0,0,0.35);
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+}
+.sidebar .nav-link {
+    color: rgba(255,255,255,0.9);
+    padding: 0.65rem 0.5rem;
+    border-radius: 6px;
+}
+.sidebar .nav-link:hover {
+    background: rgba(255,255,255,0.03);
+    color: #fff;
+    text-decoration: none;
+}
+.sidebar .nav-link.active, .sidebar .nav-link.active:focus {
+    background: linear-gradient(90deg, rgba(13,110,253,0.12), rgba(13,202,240,0.06));
+    color: #fff;
+    box-shadow: inset 0 0 0 1px rgba(13,110,253,0.06);
+}
+
+/* Make main content slightly separated from sidebar */
+main.col-md-10 {
+    padding-left: 2rem;
+}
+
+/* Responsive sidebar collapse spacing */
+@media (max-width: 991px) {
+    .sidebar { display: none; }
+    main.col-md-10 { padding-left: 1rem; }
 }

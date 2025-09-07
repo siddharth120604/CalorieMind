@@ -27,37 +27,38 @@ class AIService:
             return self._fallback_meal_data(meal_text)
         
         prompt = ChatPromptTemplate.from_messages([
-            ("system", """You are a nutrition expert. Parse the meal description into structured JSON data.
-            Return ONLY valid JSON with this exact structure:
-            {
-                "foods": [
-                    {
-                        "name": "food name",
-                        "quantity": "amount with unit",
-                        "calories": 0,
-                        "protein": 0,
-                        "carbs": 0,
-                        "fats": 0,
-                        "fiber": 0,
-                        "sugar": 0,
-                        "sodium": 0
-                    }
-                ],
-                "total_calories": 0,
-                "total_protein": 0,
-                "total_carbs": 0,
-                "total_fats": 0,
-                "total_fiber": 0,
-                "total_sugar": 0,
-                "total_sodium": 0,
-                "meal_type": "breakfast/lunch/dinner/snack"
-            }
-            
-            All nutritional values should be realistic estimates based on standard food databases.
-            Protein, carbs, fats, fiber, sugar in grams. Sodium in milligrams.
-            """),
-            ("user", "{meal_text}")
-        ])
+        ("system", """You are a nutrition expert. Parse the meal description into structured JSON data.
+        Return ONLY valid JSON with this exact structure:
+        {{
+            "foods": [
+                {{
+                    "name": "food name",
+                    "quantity": "amount with unit",
+                    "calories": 0,
+                    "protein": 0,
+                    "carbs": 0,
+                    "fats": 0,
+                    "fiber": 0,
+                    "sugar": 0,
+                    "sodium": 0
+                }}
+            ],
+            "total_calories": 0,
+            "total_protein": 0,
+            "total_carbs": 0,
+            "total_fats": 0,
+            "total_fiber": 0,
+            "total_sugar": 0,
+            "total_sodium": 0,
+            "meal_type": "breakfast/lunch/dinner/snack"
+        }}
+    
+        All nutritional values should be realistic estimates based on standard food databases.
+        Protein, carbs, fats, fiber, sugar in grams. Sodium in milligrams.
+        """),
+        ("user", "{meal_text}")
+    ])
+
         
         try:
             chain = prompt | self.llm
@@ -83,37 +84,49 @@ class AIService:
             return self._fallback_activity_data(activity_text, user_weight)
         
         prompt = ChatPromptTemplate.from_messages([
-            ("system", f"""You are a fitness expert. Parse the activity description and calculate calories burned.
-            User profile: Weight: {user_weight}kg, Age: {user_age}, Gender: {user_gender}
-            
-            Return ONLY valid JSON with this exact structure:
+                ("system", """You are a fitness expert. Parse the activity description and calculate calories burned.
+
+            User profile:
+            - Weight: {user_weight} kg
+            - Age: {user_age}
+            - Gender: {user_gender}
+
+            Rules:
+            1. Extract the duration in minutes from the activity text if provided (e.g. "10 min walk" = 10 minutes). If no duration is given, make a reasonable estimate.
+            2. Choose intensity (low/moderate/high) based on the activity.
+            3. Use a reasonable MET reference table for estimation.
+            4. Formula: calories_per_minute = (MET × 3.5 × user_weight) / 200; total_calories = calories_per_minute × duration.
+
+            5. Always return valid JSON in this structure:
             {{
                 "activities": [
                     {{
                         "name": "activity name",
-                        "duration": 0,
+                        "duration": (minutes),
                         "intensity": "low/moderate/high",
-                        "calories_per_minute": 0,
-                        "total_calories": 0
+                        "calories_per_minute": (float),
+                        "total_calories": (float)
                     }}
                 ],
-                "total_duration": 0,
-                "total_calories": 0,
+                "total_duration": (minutes),
+                "total_calories": (float),
                 "activity_type": "cardio/strength/sports/other"
             }}
-            
-            Calculate realistic calories burned based on:
-            - Activity type and intensity
-            - Duration in minutes
-            - User's weight (heavier people burn more calories)
-            - Standard MET (Metabolic Equivalent) values
+
+            Output only JSON. Do not include explanations.
             """),
-            ("user", "{activity_text}")
-        ])
-        
+                ("user", "{activity_text}")
+            ])
+
+
         try:
             chain = prompt | self.llm
-            response = chain.invoke({"activity_text": activity_text})
+            response = chain.invoke({
+                "activity_text": activity_text,
+                "user_weight": user_weight,
+                "user_age": user_age,
+                "user_gender": user_gender
+            })
             
             # Extract JSON from response
             content = response.content.strip()
@@ -153,5 +166,62 @@ class AIService:
             "total_calories": estimated_calories,
             "activity_type": "other"
         }
+    
+    def generate_daily_report(self, user_obj, summary):
+        """Use the LLM to generate a human-readable daily report.
+
+        user_obj: dict-like with keys name, age, gender, weight, height, goal
+        summary: dict with calories_consumed, calories_burned, net_calories, meals_count, activities_count
+        Returns: dict {overview, advice} or None on failure.
+        """
+        if not self.llm:
+            return None
+
+        # Prepare JSON strings to pass into the prompt
+        user_json = json.dumps(user_obj)
+        summary_json = json.dumps(summary)
+
+        # Build prompt - ask for JSON output with overview and advice
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are an expert health coach and nutritionist. Given the exact user profile and today's summary, produce a concise human-friendly daily report.
+
+Return ONLY valid JSON with the following structure:
+{{
+  "overview": "a short paragraph summarizing how the user did today",
+  "advice": "one or two concrete actionable tips tailored to the user's goal"
+}}
+
+Use the user's goal text exactly when relevant to personalize the advice. Keep total output under 3 short paragraphs. Do NOT include any extra fields or commentary outside the JSON.
+"""),
+            ("user", "User profile (JSON): {user_json}\n\nToday's summary (JSON): {summary_json}")
+        ])
+
+        try:
+            chain = prompt | self.llm
+            response = chain.invoke({
+                "user_json": user_json,
+                "summary_json": summary_json
+            })
+
+            content = response.content.strip()
+            if content.startswith('```json'):
+                content = content[7:-3]
+            elif content.startswith('```'):
+                content = content[3:-3]
+
+            # Try to load JSON
+            try:
+                parsed = json.loads(content)
+                # Expect parsed to be a dict with overview and advice
+                if isinstance(parsed, dict) and 'overview' in parsed and 'advice' in parsed:
+                    return {'overview': parsed['overview'], 'advice': parsed['advice']}
+            except Exception:
+                # Not JSON or parse failed - fall through to return None
+                logger.debug('LLM returned non-JSON for daily report')
+                return None
+
+        except Exception as e:
+            logger.error(f"Error generating daily report with AI: {e}")
+            return None
 
 ai_service = AIService()

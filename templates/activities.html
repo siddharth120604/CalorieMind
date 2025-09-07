@@ -56,7 +56,7 @@
                                         <small>{{ activity.timestamp.strftime('%m/%d %H:%M') }}</small>
                                     </td>
                                     <td>
-                                        <span class="fw-medium">{{ activity.activity_text[:50] }}{% if activity.activity_text|length > 50 %}...{% endif %}</span>
+                                        <span class="fw-medium" style="white-space: normal; word-break: break-word;">{{ activity.activity_text }}</span>
                                         {% if activity.parsed_data and activity.parsed_data.activities %}
                                             <br><small class="text-muted">
                                                 {% for act in activity.parsed_data.activities[:2] %}

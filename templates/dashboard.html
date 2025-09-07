@@ -76,6 +76,9 @@
             </div>
             <div class="card-body">
                 <canvas id="macroChart" width="300" height="300"></canvas>
+                <div id="macro-caption" class="macro-caption text-center mt-3">
+                    <!-- Filled by JS: shows grams and derived calories for each macro -->
+                </div>
             </div>
         </div>
     </div>
@@ -84,6 +87,26 @@
 <!-- Progress and Quick Actions -->
 <div class="row g-4">
     <div class="col-lg-6">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-file-medical-alt me-2"></i>Daily Report</h5>
+            </div>
+            <div class="card-body">
+                {% if daily_report %}
+                    <p class="mb-2"><strong>Overview:</strong> {{ daily_report.overview }}</p>
+                    <p class="mb-0"><strong>Advice:</strong> {{ daily_report.advice }}</p>
+                {% else %}
+                    <p class="mb-2">No daily report generated yet.</p>
+                {% endif %}
+                <hr>
+                <div class="text-center mt-2">
+                    <form method="POST" action="{{ url_for('main.generate_report') }}">
+                        <button type="submit" class="btn btn-primary">Generate Report</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
@@ -100,8 +123,26 @@
                         <small>{{ "%.0f"|format(progress) }}%</small>
                     </div>
                     <div class="progress">
-                        <div class="progress-bar" role="progressbar" style="width: {{ "%.0f"|format(progress) }}%"></div>
+                        <div class="progress-bar" role="progressbar" data-width="{{ "%.0f"|format(progress) }}"></div>
                     </div>
+                    <script>
+                        // Apply width to progress bar from data attribute to avoid template/CSS lint issues
+                        (function(){
+                            const pb = document.currentScript.previousElementSibling.querySelector('.progress-bar');
+                            if(pb){
+                                const w = pb.getAttribute('data-width') || '0';
+                                pb.style.width = w + '%';
+                            }
+                        })();
+                    </script>
+             <!-- Hidden element with macro + micro data for JS -->
+             <div id="macro-data" style="display:none;"
+                 data-protein="{{ today.get('protein', 0) }}"
+                 data-carbs="{{ today.get('carbs', 0) }}"
+                 data-fats="{{ today.get('fats', 0) }}"
+                 data-fiber="{{ today.get('fiber', 0) }}"
+                 data-sugar="{{ today.get('sugar', 0) }}"
+                 data-sodium="{{ today.get('sodium', 0) }}"></div>
                 </div>
                 
                 <div class="row g-3 text-center">
@@ -130,6 +171,7 @@
     </div>
     
     <div class="col-lg-6">
+        <div class="card">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
@@ -201,9 +243,15 @@ function loadWeeklyChart() {
 
 function loadMacroChart() {
     // Get today's macro data from the template
-    const protein = {{ today.get('protein', 0) }};
-    const carbs = {{ today.get('carbs', 0) }};
-    const fats = {{ today.get('fats', 0) }};
+    // Read macros from a hidden DOM element to avoid template code inside script
+    const macroEl = document.getElementById('macro-data');
+    const protein = Number((macroEl && macroEl.dataset.protein) || 0);
+    const carbs = Number((macroEl && macroEl.dataset.carbs) || 0);
+    const fats = Number((macroEl && macroEl.dataset.fats) || 0);
+    // Micros
+    const fiber = Number((macroEl && macroEl.dataset.fiber) || 0);
+    const sugar = Number((macroEl && macroEl.dataset.sugar) || 0);
+    const sodium = Number((macroEl && macroEl.dataset.sodium) || 0);
     
     // If no macro data, show placeholder
     if (protein === 0 && carbs === 0 && fats === 0) {
@@ -244,6 +292,26 @@ function loadMacroChart() {
             }
         }
     });
+
+    // Populate visible macro caption with grams and calories
+    const proteinCals = protein * 4;
+    const carbsCals = carbs * 4;
+    const fatsCals = fats * 9;
+    const cap = document.getElementById('macro-caption');
+    if (cap) {
+        cap.innerHTML = `
+            <div class="d-flex justify-content-center gap-4">
+                <div><strong>Protein:</strong> ${protein} g &middot; ${proteinCals} cal</div>
+                <div><strong>Carbs:</strong> ${carbs} g &middot; ${carbsCals} cal</div>
+                <div><strong>Fats:</strong> ${fats} g &middot; ${fatsCals} cal</div>
+            </div>
+            <div class="text-center mt-2 small text-muted">
+                <span class="me-3"><strong>Fiber:</strong> ${fiber} g</span>
+                <span class="me-3"><strong>Sugar:</strong> ${sugar} g</span>
+                <span><strong>Sodium:</strong> ${sodium} mg</span>
+            </div>
+        `;
+    }
 }
 </script>
 {% endblock %}

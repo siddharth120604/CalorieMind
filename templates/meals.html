@@ -67,7 +67,7 @@
                                         <small>{{ meal.timestamp.strftime('%m/%d %H:%M') }}</small>
                                     </td>
                                     <td>
-                                        <span class="fw-medium">{{ meal.meal_text[:50] }}{% if meal.meal_text|length > 50 %}...{% endif %}</span>
+                                        <span class="fw-medium" style="white-space: normal; word-break: break-word;">{{ meal.meal_text }}</span>
                                         {% if meal.parsed_data and meal.parsed_data.foods %}
                                             <br><small class="text-muted">
                                                 {% for food in meal.parsed_data.foods[:2] %}
@@ -85,12 +85,23 @@
                                     </td>
                                     <td>
                                         <small>
-                                            P: {{ "%.0f"|format(meal.protein) }}g<br>
-                                            C: {{ "%.0f"|format(meal.carbs) }}g<br>
-                                            F: {{ "%.0f"|format(meal.fats) }}g
+                                            P: {{ "%.0f"|format(meal.protein or 0) }}g<br>
+                                            C: {{ "%.0f"|format(meal.carbs or 0) }}g<br>
+                                            F: {{ "%.0f"|format(meal.fats or 0) }}g
+                                            <br>
+                                            <span class="text-muted small">
+                                                Fiber: {{ "%.0f"|format(meal.fiber or 0) }}g &nbsp;
+                                                Sugar: {{ "%.0f"|format(meal.sugar or 0) }}g &nbsp;
+                                                Sodium: {{ "%.0f"|format(meal.sodium or 0) }}mg
+                                            </span>
                                         </small>
                                     </td>
                                     <td>
+                                        <form method="POST" action="{{ url_for('main.repeat_meal', meal_id=meal.id) }}" style="display: inline;">
+                                            <button type="submit" class="btn btn-outline-secondary btn-sm" title="Repeat meal">
+                                                <i class="fas fa-repeat"></i>
+                                            </button>
+                                        </form>
                                         <form method="POST" action="{{ url_for('main.delete_meal', meal_id=meal.id) }}" 
                                               style="display: inline;" onsubmit="return confirm('Delete this meal?')">
                                             <button type="submit" class="btn btn-outline-danger btn-sm">
@@ -128,6 +139,19 @@
                         <div class="text-center">
                             <div class="h4 text-primary">{{ "%.0f"|format(today.calories_consumed) }}</div>
                             <small class="text-muted">Calories Consumed</small>
+
+                                <div class="mt-2">
+                                <small class="text-muted">
+                                    P: {{ "%.0f"|format(today.get('protein', 0)) }}g &nbsp; 
+                                    C: {{ "%.0f"|format(today.get('carbs', 0)) }}g &nbsp; 
+                                    F: {{ "%.0f"|format(today.get('fats', 0)) }}g
+                                </small>
+                                <div class="mt-1 small text-muted text-center text-nowrap">
+                                    <span class="me-3">Fiber: {{ "%.0f"|format(today.get('fiber', 0)) }}g</span>
+                                    <span class="me-3">Sugar: {{ "%.0f"|format(today.get('sugar', 0)) }}g</span>
+                                    <span class="me-3">Sodium: {{ "%.0f"|format(today.get('sodium', 0)) }}mg</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-6">
@@ -146,10 +170,20 @@
                     </small>
                     {% set progress = (today.calories_consumed / user.calculate_tdee() * 100) if user.calculate_tdee() > 0 else 0 %}
                     <div class="progress mt-2">
-                        <div class="progress-bar" role="progressbar" style="width: {{ "%.0f"|format(progress) }}%">
+                        <div class="progress-bar" role="progressbar" data-width="{{ "%.0f"|format(progress) }}">
                             {{ "%.0f"|format(progress) }}%
                         </div>
                     </div>
+                    <script>
+                        // Apply width to progress bar from data attribute to avoid template/CSS lint issues
+                        (function(){
+                            const pb = document.currentScript.previousElementSibling.querySelector('.progress-bar');
+                            if(pb){
+                                const w = pb.getAttribute('data-width') || '0';
+                                pb.style.width = w + '%';
+                            }
+                        })();
+                    </script>
                 </div>
                 {% endif %}
             </div>

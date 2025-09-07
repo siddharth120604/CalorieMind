@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Calorie Tracker{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h3>Saved Reports</h3>
+            {% if reports %}
+                <div class="list-group">
+                    {% for r in reports %}
+                        <a href="{{ url_for('main.report_detail', report_id=r.id) }}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h5 class="mb-1">{{ r.date_str }}</h5>
+                                <small>{{ r.created_at_str }}</small>
+                            </div>
+                            <p class="mb-1">{{ r.overview[:140] }}{% if r.overview|length > 140 %}...{% endif %}</p>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p>No reports generated yet.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

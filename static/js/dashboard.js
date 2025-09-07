@@ -172,11 +172,17 @@ function createMacroChart(protein, carbs, fats) {
                 },
                 tooltip: {
                     callbacks: {
+                        title: function(context) {
+                            // show the macro name as the tooltip title
+                            if (!context || !context.length) return '';
+                            return context[0].label || '';
+                        },
                         label: function(context) {
-                            const label = context.label;
-                            const value = context.parsed;
+                            const idx = context.dataIndex;
+                            const value = context.parsed; // calories
+                            const grams = [protein, carbs, fats][idx];
                             const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} cal (${percentage}%)`;
+                            return `${grams} g — ${value} cal (${percentage}%)`;
                         }
                     }
                 }

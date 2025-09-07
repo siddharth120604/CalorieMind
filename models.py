@@ -12,6 +12,7 @@ class User(db.Model):
     weight = Column(Float, nullable=False)  # in kg
     height = Column(Float, nullable=False)  # in cm
     activity_level = Column(String(20), default='moderate')  # sedentary, light, moderate, active, very_active
+    goal = Column(String(200), default='maintain')  # free-text goal
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
@@ -66,3 +67,14 @@ class Activity(db.Model):
     intensity = Column(String(20))  # low, moderate, high
     calories_burned = Column(Float, default=0)
     timestamp = Column(DateTime, default=datetime.utcnow)
+
+
+class DailyReport(db.Model):
+    __tablename__ = 'daily_reports'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, db.ForeignKey('users.id'), nullable=False)
+    date = Column(DateTime, default=datetime.utcnow)  # store date of report (UTC)
+    overview = Column(Text)
+    advice = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)

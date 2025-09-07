@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from app import db
-from models import Meal, Activity
+from models import Meal, Activity, User
+from ai_service import ai_service
 
 def get_daily_summary(user_id, date=None):
     """Get daily summary of calories consumed and burned"""
@@ -26,14 +27,27 @@ def get_daily_summary(user_id, date=None):
     
     total_calories_consumed = sum(meal.total_calories for meal in meals)
     total_calories_burned = sum(activity.calories_burned for activity in activities)
-    
+    # Sum macros from meals (some meal fields may be None)
+    total_protein = sum((meal.protein or 0) for meal in meals)
+    total_carbs = sum((meal.carbs or 0) for meal in meals)
+    total_fats = sum((meal.fats or 0) for meal in meals)
+    total_fiber = sum((meal.fiber or 0) for meal in meals)
+    total_sugar = sum((meal.sugar or 0) for meal in meals)
+    total_sodium = sum((meal.sodium or 0) for meal in meals)
+
     return {
         'date': date,
         'calories_consumed': total_calories_consumed,
         'calories_burned': total_calories_burned,
         'net_calories': total_calories_consumed - total_calories_burned,
         'meals_count': len(meals),
-        'activities_count': len(activities)
+        'activities_count': len(activities),
+        'protein': total_protein,
+        'carbs': total_carbs,
+        'fats': total_fats,
+        'fiber': total_fiber,
+        'sugar': total_sugar,
+        'sodium': total_sodium
     }
 
 def get_weekly_data(user_id, end_date=None):

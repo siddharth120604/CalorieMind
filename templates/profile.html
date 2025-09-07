@@ -69,6 +69,11 @@
                                 </option>
                             </select>
                         </div>
+                        
+                        <div class="col-md-12">
+                            <label for="goal" class="form-label">Goal</label>
+                            <textarea class="form-control" id="goal" name="goal" rows="2" placeholder="Describe your body goal (e.g., lose 5kg in 2 months, build muscle, maintain weight)" required>{{ user.goal if user else '' }}</textarea>
+                        </div>
                     </div>
                     
                     <div class="mt-4">

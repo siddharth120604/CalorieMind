@@ -4,9 +4,18 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
+from dotenv import load_dotenv
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
+load_dotenv()
+
+# Set up logging: keep general info but silence very noisy libraries
+logging.basicConfig(level=logging.INFO)
+# Quiet noisy HTTP/LLM libraries that log debug-level internals
+logging.getLogger('groq').setLevel(logging.WARNING)
+logging.getLogger('groq._base_client').setLevel(logging.WARNING)
+logging.getLogger('httpx').setLevel(logging.WARNING)
+logging.getLogger('httpcore').setLevel(logging.WARNING)
+logging.getLogger('langchain_groq').setLevel(logging.WARNING)
 
 class Base(DeclarativeBase):
     pass
