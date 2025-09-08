@@ -41,10 +41,11 @@
 
         <!-- Recent Meals -->
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
-                    <i class="fas fa-history me-2"></i>Recent Meals
+                    <i class="fas fa-history me-2"></i>Today's Meals
                 </h5>
+                <small class="text-muted">Showing entries for today &nbsp; <a href="#" class="small">view all</a></small>
             </div>
             <div class="card-body">
                 {% if meals %}
@@ -83,16 +84,16 @@
                                     <td>
                                         <span class="fw-bold text-primary">{{ "%.0f"|format(meal.total_calories) }}</span>
                                     </td>
-                                    <td>
+                                        <td>
                                         <small>
-                                            P: {{ "%.0f"|format(meal.protein or 0) }}g<br>
-                                            C: {{ "%.0f"|format(meal.carbs or 0) }}g<br>
-                                            F: {{ "%.0f"|format(meal.fats or 0) }}g
+                                            P: {{ "%.2f"|format(meal.protein or 0) }}g<br>
+                                            C: {{ "%.2f"|format(meal.carbs or 0) }}g<br>
+                                            F: {{ "%.2f"|format(meal.fats or 0) }}g
                                             <br>
                                             <span class="text-muted small">
-                                                Fiber: {{ "%.0f"|format(meal.fiber or 0) }}g &nbsp;
-                                                Sugar: {{ "%.0f"|format(meal.sugar or 0) }}g &nbsp;
-                                                Sodium: {{ "%.0f"|format(meal.sodium or 0) }}mg
+                                                Fiber: {{ "%.2f"|format(meal.fiber or 0) }}g &nbsp;
+                                                Sugar: {{ "%.2f"|format(meal.sugar or 0) }}g &nbsp;
+                                                Sodium: {{ "%.2f"|format(meal.sodium or 0) }}mg
                                             </span>
                                         </small>
                                     </td>
@@ -140,16 +141,16 @@
                             <div class="h4 text-primary">{{ "%.0f"|format(today.calories_consumed) }}</div>
                             <small class="text-muted">Calories Consumed</small>
 
-                                <div class="mt-2">
+                                    <div class="mt-2">
                                 <small class="text-muted">
-                                    P: {{ "%.0f"|format(today.get('protein', 0)) }}g &nbsp; 
-                                    C: {{ "%.0f"|format(today.get('carbs', 0)) }}g &nbsp; 
-                                    F: {{ "%.0f"|format(today.get('fats', 0)) }}g
+                                    P: {{ "%.2f"|format(today.get('protein', 0)) }}g &nbsp; 
+                                    C: {{ "%.2f"|format(today.get('carbs', 0)) }}g &nbsp; 
+                                    F: {{ "%.2f"|format(today.get('fats', 0)) }}g
                                 </small>
                                 <div class="mt-1 small text-muted text-center text-nowrap">
-                                    <span class="me-3">Fiber: {{ "%.0f"|format(today.get('fiber', 0)) }}g</span>
-                                    <span class="me-3">Sugar: {{ "%.0f"|format(today.get('sugar', 0)) }}g</span>
-                                    <span class="me-3">Sodium: {{ "%.0f"|format(today.get('sodium', 0)) }}mg</span>
+                                    <span class="me-3">Fiber: {{ "%.2f"|format(today.get('fiber', 0)) }}g</span>
+                                    <span class="me-3">Sugar: {{ "%.2f"|format(today.get('sugar', 0)) }}g</span>
+                                    <span class="me-3">Sodium: {{ "%.2f"|format(today.get('sodium', 0)) }}mg</span>
                                 </div>
                             </div>
                         </div>

@@ -137,12 +137,12 @@
                     </script>
              <!-- Hidden element with macro + micro data for JS -->
              <div id="macro-data" style="display:none;"
-                 data-protein="{{ today.get('protein', 0) }}"
-                 data-carbs="{{ today.get('carbs', 0) }}"
-                 data-fats="{{ today.get('fats', 0) }}"
-                 data-fiber="{{ today.get('fiber', 0) }}"
-                 data-sugar="{{ today.get('sugar', 0) }}"
-                 data-sodium="{{ today.get('sodium', 0) }}"></div>
+                 data-protein="{{ "%.2f"|format(today.get('protein', 0)) }}"
+                 data-carbs="{{ "%.2f"|format(today.get('carbs', 0)) }}"
+                 data-fats="{{ "%.2f"|format(today.get('fats', 0)) }}"
+                 data-fiber="{{ "%.2f"|format(today.get('fiber', 0)) }}"
+                 data-sugar="{{ "%.2f"|format(today.get('sugar', 0)) }}"
+                 data-sodium="{{ "%.2f"|format(today.get('sodium', 0)) }}"></div>
                 </div>
                 
                 <div class="row g-3 text-center">
@@ -299,16 +299,27 @@ function loadMacroChart() {
     const fatsCals = fats * 9;
     const cap = document.getElementById('macro-caption');
     if (cap) {
+        // Format numbers to two decimal places to avoid long floating-point representations
+        const p = Number(protein).toFixed(2);
+        const c = Number(carbs).toFixed(2);
+        const f = Number(fats).toFixed(2);
+        const pC = Number(proteinCals).toFixed(2);
+        const cC = Number(carbsCals).toFixed(2);
+        const fC = Number(fatsCals).toFixed(2);
+        const fib = Number(fiber).toFixed(2);
+        const sug = Number(sugar).toFixed(2);
+        const sod = Number(sodium).toFixed(2);
+
         cap.innerHTML = `
             <div class="d-flex justify-content-center gap-4">
-                <div><strong>Protein:</strong> ${protein} g &middot; ${proteinCals} cal</div>
-                <div><strong>Carbs:</strong> ${carbs} g &middot; ${carbsCals} cal</div>
-                <div><strong>Fats:</strong> ${fats} g &middot; ${fatsCals} cal</div>
+                <div><strong>Protein:</strong> ${p} g &middot; ${pC} cal</div>
+                <div><strong>Carbs:</strong> ${c} g &middot; ${cC} cal</div>
+                <div><strong>Fats:</strong> ${f} g &middot; ${fC} cal</div>
             </div>
             <div class="text-center mt-2 small text-muted">
-                <span class="me-3"><strong>Fiber:</strong> ${fiber} g</span>
-                <span class="me-3"><strong>Sugar:</strong> ${sugar} g</span>
-                <span><strong>Sodium:</strong> ${sodium} mg</span>
+                <span class="me-3"><strong>Fiber:</strong> ${fib} g</span>
+                <span class="me-3"><strong>Sugar:</strong> ${sug} g</span>
+                <span><strong>Sodium:</strong> ${sod} mg</span>
             </div>
         `;
     }

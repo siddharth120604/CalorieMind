@@ -35,8 +35,8 @@
                                             <small class="text-muted">{{ m.timestamp.strftime('%H:%M') }} • {{ m.meal_type }}</small>
                                         </div>
                                         <div class="text-end">
-                                            <div>{{ "%.0f"|format(m.total_calories) }} kcal</div>
-                                            <small>P: {{ "%.0f"|format(m.protein) }}g C: {{ "%.0f"|format(m.carbs) }}g F: {{ "%.0f"|format(m.fats) }}g</small>
+                                            <div>{{ "%.2f"|format(m.total_calories) }} kcal</div>
+                                            <small>P: {{ "%.2f"|format(m.protein) }}g C: {{ "%.2f"|format(m.carbs) }}g F: {{ "%.2f"|format(m.fats) }}g</small>
                                         </div>
                                     </div>
                                 </li>
@@ -75,11 +75,11 @@
             <div class="card mb-3">
                 <div class="card-header">Totals</div>
                 <div class="card-body">
-                    <p><strong>Calories consumed:</strong> {{ "%.0f"|format(summary.calories_consumed) }}</p>
-                    <p><strong>Calories burned:</strong> {{ "%.0f"|format(summary.calories_burned) }}</p>
-                    <p><strong>Net calories:</strong> {{ "%.0f"|format(summary.net_calories) }}</p>
-                    <p><strong>Macros:</strong> P: {{ "%.0f"|format(summary.get('protein', 0)) }}g C: {{ "%.0f"|format(summary.get('carbs', 0)) }}g F: {{ "%.0f"|format(summary.get('fats', 0)) }}g</p>
-                    <p><strong>Fiber/Sugar/Sodium:</strong> Fiber: {{ "%.0f"|format(summary.get('fiber', 0)) }}g • Sugar: {{ "%.0f"|format(summary.get('sugar', 0)) }}g • Sodium: {{ "%.0f"|format(summary.get('sodium', 0)) }}mg</p>
+                    <p><strong>Calories consumed:</strong> {{ "%.2f"|format(summary.calories_consumed) }}</p>
+                    <p><strong>Calories burned:</strong> {{ "%.2f"|format(summary.calories_burned) }}</p>
+                    <p><strong>Net calories:</strong> {{ "%.2f"|format(summary.net_calories) }}</p>
+                    <p><strong>Macros:</strong> P: {{ "%.2f"|format(summary.get('protein', 0)) }}g C: {{ "%.2f"|format(summary.get('carbs', 0)) }}g F: {{ "%.2f"|format(summary.get('fats', 0)) }}g</p>
+                    <p><strong>Fiber/Sugar/Sodium:</strong> Fiber: {{ "%.2f"|format(summary.get('fiber', 0)) }}g • Sugar: {{ "%.2f"|format(summary.get('sugar', 0)) }}g • Sodium: {{ "%.2f"|format(summary.get('sodium', 0)) }}mg</p>
                 </div>
             </div>
         </div>

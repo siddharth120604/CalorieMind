@@ -46,7 +46,7 @@
             </div>
 
             <div class="text-center">
-                <h3>Welcome back, {{ user.name }}!</h3>
+                <h3>Welcome back{% if user.name %}, {{ user.name }}{% endif %}!</h3>
                 <p class="text-muted mb-4">Continue tracking your nutrition and fitness journey</p>
                 
                 <div class="d-flex gap-3 justify-content-center flex-wrap">
@@ -62,44 +62,127 @@
                 </div>
             </div>
         {% else %}
-            <!-- User not logged in, show welcome message -->
-            <div class="row g-4 mb-5">
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-body text-center">
-                            <i class="fas fa-brain fa-3x text-primary mb-3"></i>
-                            <h5>AI-Powered Analysis</h5>
-                            <p class="text-muted">Describe your meals in natural language and get detailed nutrition breakdowns</p>
+            <!-- User not logged in, show login/register options -->
+            {% if show_login %}
+                <!-- Login Form -->
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0 text-center">
+                                    <i class="fas fa-sign-in-alt me-2"></i>Login to Your Account
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form method="POST" action="{{ url_for('main.login') }}">
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email" name="email" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="password" class="form-label">Password</label>
+                                        <input type="password" class="form-control" id="password" name="password" required>
+                                    </div>
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                                        </button>
+                                    </div>
+                                </form>
+                                <div class="text-center mt-3">
+                                    <p class="text-muted">Don't have an account? 
+                                        <a href="{{ url_for('main.register') }}" class="text-decoration-none">Sign up here</a>
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-body text-center">
-                            <i class="fas fa-chart-bar fa-3x text-success mb-3"></i>
-                            <h5>Comprehensive Tracking</h5>
-                            <p class="text-muted">Monitor calories, macros, and activity with detailed charts and insights</p>
+            {% elif show_register %}
+                <!-- Register Form -->
+                <div class="row justify-content-center">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0 text-center">
+                                    <i class="fas fa-user-plus me-2"></i>Create Your Account
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <form method="POST" action="{{ url_for('main.register') }}">
+                                    <div class="mb-3">
+                                        <label for="email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email" name="email" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="password" class="form-label">Password</label>
+                                        <input type="password" class="form-control" id="password" name="password" required minlength="6">
+                                        <div class="form-text">Password must be at least 6 characters long</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="confirm_password" class="form-label">Confirm Password</label>
+                                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
+                                    </div>
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="fas fa-user-plus me-2"></i>Create Account
+                                        </button>
+                                    </div>
+                                </form>
+                                <div class="text-center mt-3">
+                                    <p class="text-muted">Already have an account? 
+                                        <a href="{{ url_for('main.login') }}" class="text-decoration-none">Login here</a>
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-body text-center">
-                            <i class="fas fa-target fa-3x text-info mb-3"></i>
-                            <h5>Personalized Goals</h5>
-                            <p class="text-muted">Set up your profile for personalized calorie calculations and recommendations</p>
+            {% else %}
+                <!-- Welcome Page with Features -->
+                <div class="row g-4 mb-5">
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-brain fa-3x text-primary mb-3"></i>
+                                <h5>AI-Powered Analysis</h5>
+                                <p class="text-muted">Describe your meals in natural language and get detailed nutrition breakdowns</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-chart-bar fa-3x text-success mb-3"></i>
+                                <h5>Comprehensive Tracking</h5>
+                                <p class="text-muted">Monitor calories, macros, and activity with detailed charts and insights</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <i class="fas fa-target fa-3x text-info mb-3"></i>
+                                <h5>Personalized Goals</h5>
+                                <p class="text-muted">Set up your profile for personalized calorie calculations and recommendations</p>
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="text-center">
-                <h3>Get Started Today</h3>
-                <p class="text-muted mb-4">Create your profile to begin tracking your nutrition and fitness journey</p>
-                <a href="{{ url_for('main.profile') }}" class="btn btn-primary btn-lg">
-                    <i class="fas fa-user-plus me-2"></i>Set Up Profile
-                </a>
-            </div>
+                <div class="text-center">
+                    <h3>Get Started Today</h3>
+                    <p class="text-muted mb-4">Create your account to begin tracking your nutrition and fitness journey</p>
+                    <div class="d-flex gap-3 justify-content-center flex-wrap">
+                        <a href="{{ url_for('main.register') }}" class="btn btn-primary btn-lg">
+                            <i class="fas fa-user-plus me-2"></i>Create Account
+                        </a>
+                        <a href="{{ url_for('main.login') }}" class="btn btn-outline-primary btn-lg">
+                            <i class="fas fa-sign-in-alt me-2"></i>Login
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
         {% endif %}
     </div>
 </div>

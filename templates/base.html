@@ -27,9 +27,27 @@
                 <i class="fas fa-utensils me-2"></i>Calorie Tracker
             </a>
             <div class="d-flex ms-auto me-3">
-                <a class="nav-link text-light" href="{{ url_for('main.profile') }}">
-                    <i class="fas fa-user me-1"></i>
-                </a>
+                {% if session.user_id %}
+                    <div class="dropdown">
+                        <a class="nav-link text-light dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user me-1"></i>
+                            {% if session.user_id %}
+                                {% set current_user = get_user_by_id(session.user_id) %}
+                                {{ current_user.name or current_user.email if current_user else 'User' }}
+                            {% endif %}
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('main.profile') }}"><i class="fas fa-user me-2"></i>Profile</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-outline-light btn-sm" href="{{ url_for('main.login') }}">Login</a>
+                        <a class="btn btn-primary btn-sm" href="{{ url_for('main.register') }}">Sign Up</a>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </nav>
@@ -51,6 +69,7 @@
     <!-- Main Content with Sidebar -->
     <div class="container-fluid mt-4">
         <div class="row">
+            {% if session.user_id %}
             <aside class="col-md-2 d-none d-md-block bg-dark sidebar pt-4" style="min-height:80vh;">
                 <ul class="nav flex-column text-white px-2">
                     <li class="nav-item mb-2">
@@ -70,8 +89,9 @@
                     </li>
                 </ul>
             </aside>
+            {% endif %}
 
-            <main class="col-md-10 col-12">
+            <main class="{% if session.user_id %}col-md-10 col-12{% else %}col-12{% endif %}">
                 {% block content %}{% endblock %}
             </main>
         </div>

@@ -54,7 +54,7 @@ class AIService:
         }}
     
         All nutritional values should be realistic estimates based on standard food databases.
-        Protein, carbs, fats, fiber, sugar in grams. Sodium in milligrams.
+        Calories,Protein, carbs, fats, fiber, sugar in grams. Sodium in milligrams.
         """),
         ("user", "{meal_text}")
     ])

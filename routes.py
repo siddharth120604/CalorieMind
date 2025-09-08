@@ -19,6 +19,14 @@ logger = logging.getLogger(__name__)
 
 main_bp = Blueprint('main', __name__)
 
+@main_bp.app_context_processor
+def inject_template_vars():
+    """Inject template variables"""
+    def get_user_by_id(user_id):
+        return User.query.get(user_id) if user_id else None
+    
+    return dict(get_user_by_id=get_user_by_id)
+
 
 def _get_daily_report_for_user(user, today_summary):
     """Helper to build user/summary objects and call the AI service.
@@ -65,6 +73,11 @@ def index():
         session.clear()
         return render_template('index.html')
     
+    # Check if profile is completed
+    if not user.profile_completed:
+        flash('Please complete your profile to start tracking', 'info')
+        return redirect(url_for('main.profile'))
+    
     # Get today's summary
     today_summary = get_daily_summary(user.id)
 
@@ -78,9 +91,94 @@ def index():
 
     return render_template('dashboard.html', user=user, today=today_summary, daily_report=daily_report)
 
+@main_bp.route('/login', methods=['GET', 'POST'])
+def login():
+    """Login page"""
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        
+        if not email or not password:
+            flash('Please enter both email and password', 'error')
+            return render_template('index.html', show_login=True)
+        
+        user = User.query.filter_by(email=email).first()
+        
+        if user and user.check_password(password):
+            session['user_id'] = user.id
+            flash(f'Welcome back, {user.name or user.email}!', 'success')
+            return redirect(url_for('main.index'))
+        else:
+            flash('Invalid email or password', 'error')
+            return render_template('index.html', show_login=True)
+    
+    return render_template('index.html', show_login=True)
+
+@main_bp.route('/register', methods=['GET', 'POST'])
+def register():
+    """Register page"""
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        
+        if not email or not password:
+            flash('Please enter both email and password', 'error')
+            return render_template('index.html', show_register=True)
+        
+        if password != confirm_password:
+            flash('Passwords do not match', 'error')
+            return render_template('index.html', show_register=True)
+        
+        if len(password) < 6:
+            flash('Password must be at least 6 characters long', 'error')
+            return render_template('index.html', show_register=True)
+        
+        # Check if user already exists
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            flash('An account with this email already exists', 'error')
+            return render_template('index.html', show_register=True)
+        
+        try:
+            # Create new user
+            user = User(email=email)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+            
+            session['user_id'] = user.id
+            flash('Account created successfully! Please complete your profile.', 'success')
+            return redirect(url_for('main.profile'))
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Error creating user: {e}")
+            flash('Error creating account. Please try again.', 'error')
+            return render_template('index.html', show_register=True)
+    
+    return render_template('index.html', show_register=True)
+
+@main_bp.route('/logout')
+def logout():
+    """Logout user"""
+    session.clear()
+    flash('You have been logged out successfully', 'info')
+    return redirect(url_for('main.index'))
+
 @main_bp.route('/profile', methods=['GET', 'POST'])
 def profile():
     """User profile management"""
+    if 'user_id' not in session:
+        flash('Please login first', 'error')
+        return redirect(url_for('main.login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user:
+        session.clear()
+        flash('User not found', 'error')
+        return redirect(url_for('main.login'))
+    
     if request.method == 'POST':
         name = request.form.get('name')
         age = request.form.get('age', type=int)
@@ -92,29 +190,19 @@ def profile():
 
         if not all([name, age, gender, weight, height, activity_level]):
             flash('All fields are required', 'error')
-            return render_template('profile.html')
-        
-        # Check if user exists or create new one
-        if 'user_id' in session:
-            user = User.query.get(session['user_id'])
-            if user:
-                user.name = name
-                user.age = age
-                user.gender = gender
-                user.weight = weight
-                user.height = height
-                user.activity_level = activity_level
-                user.goal = goal
-            else:
-                user = User(name=name, age=age, gender=gender, weight=weight, height=height, activity_level=activity_level, goal=goal)
-                db.session.add(user)
-        else:
-            user = User(name=name, age=age, gender=gender, weight=weight, height=height, activity_level=activity_level, goal=goal)
-            db.session.add(user)
+            return render_template('profile.html', user=user)
         
         try:
+            user.name = name
+            user.age = age
+            user.gender = gender
+            user.weight = weight
+            user.height = height
+            user.activity_level = activity_level
+            user.goal = goal
+            user.profile_completed = True
+            
             db.session.commit()
-            session['user_id'] = user.id
             flash('Profile saved successfully!', 'success')
             return redirect(url_for('main.index'))
         except Exception as e:
@@ -122,19 +210,128 @@ def profile():
             logger.error(f"Error saving profile: {e}")
             flash('Error saving profile. Please try again.', 'error')
     
-    # GET request
-    user = None
-    if 'user_id' in session:
-        user = User.query.get(session['user_id'])
-    
     return render_template('profile.html', user=user)
+
+@main_bp.route('/dashboard')
+def dashboard():
+    """Dashboard page"""
+    if 'user_id' not in session:
+        flash('Please login first', 'error')
+        return redirect(url_for('main.login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user:
+        session.clear()
+        flash('User not found', 'error')
+        return redirect(url_for('main.login'))
+    
+    if not user.profile_completed:
+        flash('Please complete your profile to view dashboard', 'info')
+        return redirect(url_for('main.profile'))
+    
+    # Get today's summary
+    today_summary = get_daily_summary(user.id)
+
+    # Load today's saved report if any
+    daily_report = DailyReport.query.filter(
+        DailyReport.user_id == user.id,
+        DailyReport.date >= datetime.combine(datetime.utcnow().date(), datetime.min.time())
+    ).order_by(DailyReport.created_at.desc()).first()
+    if daily_report:
+        daily_report = {'overview': daily_report.overview, 'advice': daily_report.advice}
+
+    return render_template('dashboard.html', user=user, today=today_summary, daily_report=daily_report)
+
+@main_bp.route('/meals')
+def meals():
+    """Meals page"""
+    if 'user_id' not in session:
+        flash('Please login first', 'error')
+        return redirect(url_for('main.login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user:
+        session.clear()
+        flash('User not found', 'error')
+        return redirect(url_for('main.login'))
+    
+    if not user.profile_completed:
+        flash('Please complete your profile first', 'info')
+        return redirect(url_for('main.profile'))
+    
+    # Get user's meals for today using IST (Asia/Kolkata) boundaries
+    if IST_ZONE:
+        ist_now = datetime.now(IST_ZONE)
+        ist_start = datetime.combine(ist_now.date(), datetime.min.time()).replace(tzinfo=IST_ZONE)
+        ist_end = ist_start + timedelta(days=1)
+        # convert IST boundaries to UTC for comparison if timestamps are stored in UTC
+        start_of_day = ist_start.astimezone(timezone.utc)
+        end_of_day = ist_end.astimezone(timezone.utc)
+    else:
+        # fallback to UTC day boundaries
+        start_of_day = datetime.combine(datetime.utcnow().date(), datetime.min.time()).replace(tzinfo=timezone.utc)
+        end_of_day = start_of_day + timedelta(days=1)
+
+    meals = (Meal.query
+             .filter(Meal.user_id == user.id)
+             .filter(Meal.timestamp >= start_of_day, Meal.timestamp < end_of_day)
+             .order_by(Meal.timestamp.desc())
+             .limit(50)
+             .all())
+    
+    # Get today's summary
+    today_summary = get_daily_summary(user.id)
+    
+    return render_template('meals.html', meals=meals, user=user, today=today_summary)
+
+@main_bp.route('/activities')
+def activities():
+    """Activities page"""
+    if 'user_id' not in session:
+        flash('Please login first', 'error')
+        return redirect(url_for('main.login'))
+    
+    user = User.query.get(session['user_id'])
+    if not user:
+        session.clear()
+        flash('User not found', 'error')
+        return redirect(url_for('main.login'))
+    
+    if not user.profile_completed:
+        flash('Please complete your profile first', 'info')
+        return redirect(url_for('main.profile'))
+    
+    # Get user's activities for today using IST (Asia/Kolkata) boundaries
+    if IST_ZONE:
+        ist_now = datetime.now(IST_ZONE)
+        ist_start = datetime.combine(ist_now.date(), datetime.min.time()).replace(tzinfo=IST_ZONE)
+        ist_end = ist_start + timedelta(days=1)
+        # convert IST boundaries to UTC for comparison if timestamps are stored in UTC
+        start_of_day = ist_start.astimezone(timezone.utc)
+        end_of_day = ist_end.astimezone(timezone.utc)
+    else:
+        # fallback to UTC day boundaries
+        start_of_day = datetime.combine(datetime.utcnow().date(), datetime.min.time()).replace(tzinfo=timezone.utc)
+        end_of_day = start_of_day + timedelta(days=1)
+
+    activities = (Activity.query
+                  .filter(Activity.user_id == user.id)
+                  .filter(Activity.timestamp >= start_of_day, Activity.timestamp < end_of_day)
+                  .order_by(Activity.timestamp.desc())
+                  .limit(50)
+                  .all())
+    
+    # Get today's summary
+    today_summary = get_daily_summary(user.id)
+    
+    return render_template('activities.html', activities=activities, user=user, today=today_summary)
 
 @main_bp.route('/add_meal', methods=['POST'])
 def add_meal():
     """Add a new meal"""
     if 'user_id' not in session:
-        flash('Please set up your profile first', 'error')
-        return redirect(url_for('main.profile'))
+        flash('Please login first', 'error')
+        return redirect(url_for('main.login'))
     
     meal_text = request.form.get('meal_text', '').strip()
     meal_type = request.form.get('meal_type', 'meal')
@@ -224,91 +421,17 @@ def add_activity():
     
     return redirect(url_for('main.activities'))
 
-@main_bp.route('/meals')
-def meals():
-    """Meals dashboard"""
-    if 'user_id' not in session:
-        flash('Please set up your profile first', 'error')
-        return redirect(url_for('main.profile'))
-    
-    user = User.query.get(session['user_id'])
-    if not user:
-        flash('User not found', 'error')
-        return redirect(url_for('main.profile'))
-    
-    # Get recent meals (last 30 days)
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    recent_meals = Meal.query.filter(
-        Meal.user_id == user.id,
-        Meal.timestamp >= thirty_days_ago
-    ).order_by(Meal.timestamp.desc()).limit(50).all()
-    
-    # Get today's summary
-    today_summary = get_daily_summary(user.id)
-    
-    return render_template('meals.html', meals=recent_meals, today=today_summary, user=user)
-
-@main_bp.route('/activities')
-def activities():
-    """Activities dashboard"""
-    if 'user_id' not in session:
-        flash('Please set up your profile first', 'error')
-        return redirect(url_for('main.profile'))
-    
-    user = User.query.get(session['user_id'])
-    if not user:
-        flash('User not found', 'error')
-        return redirect(url_for('main.profile'))
-    
-    # Get recent activities (last 30 days)
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
-    recent_activities = Activity.query.filter(
-        Activity.user_id == user.id,
-        Activity.timestamp >= thirty_days_ago
-    ).order_by(Activity.timestamp.desc()).limit(50).all()
-    
-    # Get today's summary
-    today_summary = get_daily_summary(user.id)
-    
-    return render_template('activities.html', activities=recent_activities, today=today_summary, user=user)
-
-@main_bp.route('/dashboard')
-def dashboard():
-    """Main dashboard with charts"""
-    if 'user_id' not in session:
-        flash('Please set up your profile first', 'error')
-        return redirect(url_for('main.profile'))
-    
-    user = User.query.get(session['user_id'])
-    if not user:
-        flash('User not found', 'error')
-        return redirect(url_for('main.profile'))
-    
-    # Get today's summary
-    today_summary = get_daily_summary(user.id)
-
-    # Load today's saved report if any
-    daily_report = DailyReport.query.filter(
-        DailyReport.user_id == user.id,
-        DailyReport.date >= datetime.combine(datetime.utcnow().date(), datetime.min.time())
-    ).order_by(DailyReport.created_at.desc()).first()
-    if daily_report:
-        daily_report = {'overview': daily_report.overview, 'advice': daily_report.advice}
-
-    return render_template('dashboard.html', user=user, today=today_summary, daily_report=daily_report)
-
-
 @main_bp.route('/generate_report', methods=['POST'])
 def generate_report():
     """Generate a daily report via the LLM and save it to DB"""
     if 'user_id' not in session:
-        flash('Please set up your profile first', 'error')
-        return redirect(url_for('main.profile'))
+        flash('Please login first', 'error')
+        return redirect(url_for('main.login'))
 
     user = User.query.get(session['user_id'])
     if not user:
         flash('User not found', 'error')
-        return redirect(url_for('main.profile'))
+        return redirect(url_for('main.login'))
 
     today_summary = get_daily_summary(user.id)
     report = _get_daily_report_for_user(user, today_summary)
@@ -344,18 +467,17 @@ def generate_report():
 
     return redirect(url_for('main.index'))
 
-
 @main_bp.route('/reports')
 def reports():
     """List saved daily reports"""
     if 'user_id' not in session:
-        flash('Please set up your profile first', 'error')
-        return redirect(url_for('main.profile'))
+        flash('Please login first', 'error')
+        return redirect(url_for('main.login'))
 
     user = User.query.get(session['user_id'])
     if not user:
         flash('User not found', 'error')
-        return redirect(url_for('main.profile'))
+        return redirect(url_for('main.login'))
 
     reports = DailyReport.query.filter(DailyReport.user_id == user.id).order_by(DailyReport.created_at.desc()).all()
 
@@ -386,18 +508,17 @@ def reports():
 
     return render_template('reports.html', reports=reports_display, user=user)
 
-
 @main_bp.route('/reports/<int:report_id>')
 def report_detail(report_id):
     """Show a saved report with related meals and activities for that day"""
     if 'user_id' not in session:
-        flash('Please set up your profile first', 'error')
-        return redirect(url_for('main.profile'))
+        flash('Please login first', 'error')
+        return redirect(url_for('main.login'))
 
     user = User.query.get(session['user_id'])
     if not user:
         flash('User not found', 'error')
-        return redirect(url_for('main.profile'))
+        return redirect(url_for('main.login'))
 
     report = DailyReport.query.filter_by(id=report_id, user_id=user.id).first()
     if not report:
@@ -478,7 +599,7 @@ def delete_meal(meal_id):
     """Delete a meal"""
     if 'user_id' not in session:
         flash('Not authenticated', 'error')
-        return redirect(url_for('main.profile'))
+        return redirect(url_for('main.login'))
     
     meal = Meal.query.filter_by(id=meal_id, user_id=session['user_id']).first()
     if not meal:
@@ -496,13 +617,12 @@ def delete_meal(meal_id):
     
     return redirect(url_for('main.meals'))
 
-
 @main_bp.route('/repeat_meal/<int:meal_id>', methods=['POST'])
 def repeat_meal(meal_id):
     """Duplicate a meal entry for the current user with a new timestamp"""
     if 'user_id' not in session:
         flash('Not authenticated', 'error')
-        return redirect(url_for('main.profile'))
+        return redirect(url_for('main.login'))
 
     orig = Meal.query.filter_by(id=meal_id, user_id=session['user_id']).first()
     if not orig:
@@ -538,7 +658,7 @@ def delete_activity(activity_id):
     """Delete an activity"""
     if 'user_id' not in session:
         flash('Not authenticated', 'error')
-        return redirect(url_for('main.profile'))
+        return redirect(url_for('main.login'))
     
     activity = Activity.query.filter_by(id=activity_id, user_id=session['user_id']).first()
     if not activity:

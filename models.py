@@ -1,26 +1,40 @@
 from app import db
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, DateTime, Text, JSON
+from werkzeug.security import generate_password_hash, check_password_hash
 
 class User(db.Model):
     __tablename__ = 'users'
     
     id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    age = Column(Integer, nullable=False)
-    gender = Column(String(10), nullable=False)  # 'male' or 'female'
-    weight = Column(Float, nullable=False)  # in kg
-    height = Column(Float, nullable=False)  # in cm
+    email = Column(String(120), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    name = Column(String(100), nullable=True)
+    age = Column(Integer, nullable=True)
+    gender = Column(String(10), nullable=True)  # 'male' or 'female'
+    weight = Column(Float, nullable=True)  # in kg
+    height = Column(Float, nullable=True)  # in cm
     activity_level = Column(String(20), default='moderate')  # sedentary, light, moderate, active, very_active
     goal = Column(String(200), default='maintain')  # free-text goal
+    profile_completed = Column(db.Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
     meals = db.relationship('Meal', backref='user', lazy=True, cascade='all, delete-orphan')
     activities = db.relationship('Activity', backref='user', lazy=True, cascade='all, delete-orphan')
     
+    def set_password(self, password):
+        """Hash and set password"""
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        """Check if provided password matches hash"""
+        return check_password_hash(self.password_hash, password)
+    
     def calculate_bmr(self):
         """Calculate Basal Metabolic Rate using Mifflin-St Jeor Equation"""
+        if not all([self.weight, self.height, self.age, self.gender]):
+            return 0
         if self.gender.lower() == 'male':
             return 10 * self.weight + 6.25 * self.height - 5 * self.age + 5
         else:
@@ -29,6 +43,8 @@ class User(db.Model):
     def calculate_tdee(self):
         """Calculate Total Daily Energy Expenditure"""
         bmr = self.calculate_bmr()
+        if bmr == 0:
+            return 0
         activity_multipliers = {
             'sedentary': 1.2,
             'light': 1.375,
