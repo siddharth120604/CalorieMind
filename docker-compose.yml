@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  migrate:
+    build: .
+    container_name: calorie_tracker_migrate
+    command: python3 scripts/apply_migrations.py
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/calorie_tracker
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  web:
+    build: .
+    container_name: calorie_tracker_web
+    command: python3 main.py
+    ports:
+      -  "8080:8080"
+    env_file:
+      - .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/calorie_tracker
+    restart: unless-stopped
+  
+  db:
+    image: postgres:16
+    container_name: calorie_tracker_db
+    environment:
+      POSTGRES_DB: calorie_tracker
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d calorie_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+      
+volumes:
+  postgres_data:

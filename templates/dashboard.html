@@ -100,6 +100,9 @@
                 {% if daily_report %}
                     <p class="mb-2"><strong>Overview:</strong> {{ daily_report.overview }}</p>
                     <p class="mb-0"><strong>Advice:</strong> {{ daily_report.advice }}</p>
+                    {% if daily_report.concerns %}
+                        <p class="mt-2 mb-0"><strong>Concerns:</strong> {{ daily_report.concerns }}</p>
+                    {% endif %}
                 {% else %}
                     <p class="mb-2">No daily report generated yet.</p>
                 {% endif %}
@@ -379,7 +382,8 @@ function fetchDailyView(dateStr){
                         const body = c.querySelector('.card-body');
                         if(body){
                             if(data.report){
-                                body.innerHTML = `<p class="mb-2"><strong>Overview:</strong> ${data.report.overview}</p><p class="mb-0"><strong>Advice:</strong> ${data.report.advice}</p><hr><div class="text-center mt-2"><form method="POST" action="/generate_report"><button type="submit" class="btn btn-primary">Generate Report</button></form></div>`;
+                                const concerns = data.report.concerns ? `<p class="mt-2 mb-0"><strong>Concerns:</strong> ${data.report.concerns}</p>` : '';
+                                body.innerHTML = `<p class="mb-2"><strong>Overview:</strong> ${data.report.overview}</p><p class="mb-0"><strong>Advice:</strong> ${data.report.advice}</p>${concerns}<hr><div class="text-center mt-2"><form method="POST" action="/generate_report"><button type="submit" class="btn btn-primary">Generate Report</button></form></div>`;
                             } else {
                                 body.innerHTML = `<p class="mb-2">No daily report generated for this date.</p><hr><div class="text-center mt-2"><form method="POST" action="/generate_report"><button type="submit" class="btn btn-primary">Generate Report</button></form></div>`;
                             }

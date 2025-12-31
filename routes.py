@@ -129,7 +129,11 @@ def index():
         DailyReport.date >= datetime.combine(datetime.utcnow().date(), datetime.min.time())
     ).order_by(DailyReport.created_at.desc()).first()
     if daily_report:
-        daily_report = {'overview': daily_report.overview, 'advice': daily_report.advice}
+        daily_report = {
+            'overview': daily_report.overview,
+            'advice': daily_report.advice,
+            'concerns': getattr(daily_report, 'concerns', None),
+        }
 
     return render_template('dashboard.html', user=user, today=today_summary, daily_report=daily_report)
 
@@ -205,7 +209,12 @@ def api_daily_view():
 
     report_data = None
     if report:
-        report_data = {'overview': report.overview, 'advice': report.advice, 'created_at': report.created_at.isoformat()}
+        report_data = {
+            'overview': report.overview,
+            'advice': report.advice,
+            'concerns': getattr(report, 'concerns', None),
+            'created_at': report.created_at.isoformat(),
+        }
 
     return jsonify({'summary': summary, 'meals': meals, 'activities': activities, 'report': report_data})
 
@@ -280,23 +289,29 @@ def register():
             return render_template('index.html', show_register=True)
         
         try:
-            # Create new user with pending role
+            ADMIN_EMAIL = 'siddharthraturi12@gmail.com'
+
+            # Create new user
             user = User(email=email)
             user.set_password(password)
-            user.role = 'pending'
+            user.role = 'admin' if email == ADMIN_EMAIL else 'pending'
             db.session.add(user)
             db.session.commit()
 
-            # Notify all admins internally
-            admins = User.query.filter_by(role='admin').all()
-            if admins:
-                for admin in admins:
-                    note = Notification(recipient_id=admin.id, sender_id=None, message=f"New user registered: {user.email}")
-                    db.session.add(note)
-                db.session.commit()
+            # Notify all admins internally for pending signups
+            if user.role == 'pending':
+                admins = User.query.filter_by(role='admin').all()
+                if admins:
+                    for admin in admins:
+                        note = Notification(recipient_id=admin.id, sender_id=None, message=f"New user registered: {user.email}")
+                        db.session.add(note)
+                    db.session.commit()
 
-            flash('Account created. An admin will review your registration shortly.', 'success')
-            return redirect(url_for('main.index', pending=1))
+                flash('Account created. An admin will review your registration shortly.', 'success')
+                return redirect(url_for('main.index', pending=1))
+
+            flash('Admin account created. You can log in now.', 'success')
+            return redirect(url_for('main.login'))
 
         except Exception as e:
             db.session.rollback()
@@ -602,12 +617,19 @@ def generate_report():
         if existing:
             existing.overview = report.get('overview')
             existing.advice = report.get('advice')
+            existing.concerns = report.get('concerns')
             existing.created_at = datetime.utcnow()
             existing.date = datetime.utcnow()
             db.session.commit()
             flash('Daily report regenerated and saved (replaced previous).', 'success')
         else:
-            dr = DailyReport(user_id=user.id, date=datetime.utcnow(), overview=report.get('overview'), advice=report.get('advice'))
+            dr = DailyReport(
+                user_id=user.id,
+                date=datetime.utcnow(),
+                overview=report.get('overview'),
+                advice=report.get('advice'),
+                concerns=report.get('concerns'),
+            )
             db.session.add(dr)
             db.session.commit()
             flash('Daily report generated and saved.', 'success')
@@ -707,7 +729,8 @@ def report_detail(report_id):
         'date_str': to_ist_str(report.date),
         'created_at_str': to_ist_str(report.created_at),
         'overview': report.overview,
-        'advice': report.advice
+        'advice': report.advice,
+        'concerns': getattr(report, 'concerns', None),
     }
 
     return render_template('report_detail.html', report=report_display, meals=meals, activities=activities, summary=summary, user=user)

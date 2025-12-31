@@ -94,6 +94,7 @@ class DailyReport(db.Model):
     date = Column(DateTime, default=datetime.utcnow)  # store date of report (UTC)
     overview = Column(Text)
     advice = Column(Text)
+    concerns = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 

@@ -294,7 +294,8 @@ class AIService:
 Return ONLY valid JSON with the following structure:
 {{
   "overview": "a short paragraph summarizing how the user did today",
-  "advice": "one or two concrete actionable tips tailored to the user's goal"
+  "advice": "two or three concrete actionable tips tailored to the user's goal",
+  "concerns": "what user is doing wrong based on his goal"
 }}
 
 Use the user's goal text exactly when relevant to personalize the advice. Keep total output under 3 short paragraphs. Do NOT include any extra fields or commentary outside the JSON.
@@ -320,9 +321,13 @@ Use the user's goal text exactly when relevant to personalize the advice. Keep t
             # Try to load JSON
             try:
                 parsed = json.loads(content)
-                # Expect parsed to be a dict with overview and advice
+                # Expect parsed to be a dict with overview/advice; concerns is optional
                 if isinstance(parsed, dict) and 'overview' in parsed and 'advice' in parsed:
-                    return {'overview': parsed['overview'], 'advice': parsed['advice']}
+                    return {
+                        'overview': parsed.get('overview'),
+                        'advice': parsed.get('advice'),
+                        'concerns': parsed.get('concerns'),
+                    }
             except Exception:
                 # Not JSON or parse failed - fall through to return None
                 logger.debug('LLM returned non-JSON for daily report')
