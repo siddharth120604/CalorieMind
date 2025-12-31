@@ -10,6 +10,10 @@ class AIService:
     def __init__(self):
         self.api_key = os.getenv("GROQ_API_KEY", "your_api_key_here")
         self.model = os.getenv("GROQ_MODEL", "mixtral-8x7b-32768")
+
+        # Token metrics (best-effort; depends on provider returning usage metadata)
+        self._last_usage = None
+        self._usage_totals = {}
         
         try:
             self.llm = ChatGroq(
@@ -20,10 +24,105 @@ class AIService:
         except Exception as e:
             logger.error(f"Failed to initialize ChatGroq: {e}")
             self.llm = None
+
+    def _extract_token_usage(self, response):
+        """Best-effort extraction of token usage from LangChain message metadata."""
+        if response is None:
+            return None
+
+        meta = {}
+        try:
+            rm = getattr(response, 'response_metadata', None)
+            if isinstance(rm, dict):
+                meta.update(rm)
+        except Exception:
+            pass
+
+        try:
+            um = getattr(response, 'usage_metadata', None)
+            if isinstance(um, dict):
+                meta.setdefault('token_usage', um)
+        except Exception:
+            pass
+
+        usage = None
+        for key in ('token_usage', 'usage', 'usage_metadata'):
+            val = meta.get(key)
+            if isinstance(val, dict):
+                usage = val
+                break
+
+        # Some providers nest usage deeper
+        if usage is None:
+            for key in ('response', 'metadata'):
+                val = meta.get(key)
+                if isinstance(val, dict):
+                    nested = val.get('token_usage') or val.get('usage')
+                    if isinstance(nested, dict):
+                        usage = nested
+                        break
+
+        if not isinstance(usage, dict):
+            return None
+
+        input_tokens = usage.get('input_tokens')
+        if input_tokens is None:
+            input_tokens = usage.get('prompt_tokens')
+        output_tokens = usage.get('output_tokens')
+        if output_tokens is None:
+            output_tokens = usage.get('completion_tokens')
+        total_tokens = usage.get('total_tokens')
+
+        try:
+            input_tokens = int(input_tokens) if input_tokens is not None else None
+        except Exception:
+            input_tokens = None
+        try:
+            output_tokens = int(output_tokens) if output_tokens is not None else None
+        except Exception:
+            output_tokens = None
+        try:
+            total_tokens = int(total_tokens) if total_tokens is not None else None
+        except Exception:
+            total_tokens = None
+
+        if total_tokens is None and input_tokens is not None and output_tokens is not None:
+            total_tokens = input_tokens + output_tokens
+
+        # If we still got nothing useful, consider it unavailable
+        if input_tokens is None and output_tokens is None and total_tokens is None:
+            return None
+
+        return {
+            'input_tokens': input_tokens,
+            'output_tokens': output_tokens,
+            'total_tokens': total_tokens,
+        }
+
+    def _record_usage(self, action, response):
+        usage = self._extract_token_usage(response)
+        self._last_usage = {'action': action, 'usage': usage}
+        if usage and isinstance(usage, dict):
+            cur = self._usage_totals.get(action, {'input_tokens': 0, 'output_tokens': 0, 'total_tokens': 0})
+            cur['input_tokens'] += int(usage.get('input_tokens') or 0)
+            cur['output_tokens'] += int(usage.get('output_tokens') or 0)
+            cur['total_tokens'] += int(usage.get('total_tokens') or 0)
+            self._usage_totals[action] = cur
+
+    def pop_last_usage(self):
+        """Return and clear last recorded usage."""
+        last = self._last_usage
+        self._last_usage = None
+        return last
+
+    def get_usage_totals(self):
+        """Return cumulative totals per action (in-memory)."""
+        return dict(self._usage_totals)
     
     def parse_meal(self, meal_text):
         """Parse meal description into structured nutrition data"""
         if not self.llm:
+            self._last_usage = {'action': 'parse_meal', 'usage': None}
             return self._fallback_meal_data(meal_text)
         
         prompt = ChatPromptTemplate.from_messages([
@@ -63,6 +162,8 @@ class AIService:
         try:
             chain = prompt | self.llm
             response = chain.invoke({"meal_text": meal_text})
+
+            self._record_usage('parse_meal', response)
             
             # Extract JSON from response
             content = response.content.strip()
@@ -76,11 +177,13 @@ class AIService:
         
         except Exception as e:
             logger.error(f"Error parsing meal with AI: {e}")
+            self._last_usage = {'action': 'parse_meal', 'usage': None}
             return self._fallback_meal_data(meal_text)
     
     def parse_activity(self, activity_text, user_weight, user_age, user_gender):
         """Parse activity description and calculate calories burned"""
         if not self.llm:
+            self._last_usage = {'action': 'parse_activity', 'usage': None}
             return self._fallback_activity_data(activity_text, user_weight)
         
         prompt = ChatPromptTemplate.from_messages([
@@ -127,6 +230,8 @@ class AIService:
                 "user_age": user_age,
                 "user_gender": user_gender
             })
+
+            self._record_usage('parse_activity', response)
             
             # Extract JSON from response
             content = response.content.strip()
@@ -140,6 +245,7 @@ class AIService:
         
         except Exception as e:
             logger.error(f"Error parsing activity with AI: {e}")
+            self._last_usage = {'action': 'parse_activity', 'usage': None}
             return self._fallback_activity_data(activity_text, user_weight)
     
     def _fallback_meal_data(self, meal_text):
@@ -203,6 +309,8 @@ Use the user's goal text exactly when relevant to personalize the advice. Keep t
                 "summary_json": summary_json
             })
 
+            self._record_usage('generate_daily_report', response)
+
             content = response.content.strip()
             if content.startswith('```json'):
                 content = content[7:-3]
@@ -222,6 +330,7 @@ Use the user's goal text exactly when relevant to personalize the advice. Keep t
 
         except Exception as e:
             logger.error(f"Error generating daily report with AI: {e}")
+            self._last_usage = {'action': 'generate_daily_report', 'usage': None}
             return None
 
 ai_service = AIService()

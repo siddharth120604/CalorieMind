@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from datetime import datetime, timedelta
 from app import db
-from models import User, Meal, Activity
+from models import User, Meal, Activity, Notification
 from ai_service import ai_service
 from utils import get_daily_summary, get_weekly_data, get_monthly_data
 from models import DailyReport
@@ -14,6 +14,7 @@ except Exception:
     IST_ZONE = None
 from sqlalchemy import func
 import logging
+from functools import wraps
 
 logger = logging.getLogger(__name__)
 
@@ -56,17 +57,58 @@ def _get_daily_report_for_user(user, today_summary):
             'sodium': today_summary.get('sodium', 0)
         }
         logger.debug('Calling AIService.generate_daily_report')
-        return ai_service.generate_daily_report(user_obj, summary_obj)
+        report = ai_service.generate_daily_report(user_obj, summary_obj)
+        return report
     except Exception:
         logger.exception('Failed to generate daily report')
         return None
 
 
+def _format_token_usage(last_usage):
+    """Format last usage dict from AIService into a short string."""
+    if not last_usage or not isinstance(last_usage, dict):
+        return None
+    usage = last_usage.get('usage')
+    if not usage or not isinstance(usage, dict):
+        return None
+    in_tok = usage.get('input_tokens')
+    out_tok = usage.get('output_tokens')
+    total = usage.get('total_tokens')
+    parts = []
+    if total is not None:
+        parts.append(f"total {total}")
+    if in_tok is not None:
+        parts.append(f"in {in_tok}")
+    if out_tok is not None:
+        parts.append(f"out {out_tok}")
+    return "Tokens: " + ", ".join(parts) if parts else None
+
+
+def _log_token_usage(action, user, last_usage):
+    """Log token usage to the server logs (terminal)."""
+    try:
+        usage_str = _format_token_usage(last_usage)
+        who = None
+        if user:
+            who = user.email or str(user.id)
+        if usage_str:
+            logger.info("AI tokens %s user=%s %s", action, who, usage_str)
+        else:
+            logger.info("AI tokens %s user=%s unavailable", action, who)
+    except Exception:
+        # Never break the request due to metrics
+        logger.debug("Failed to log token usage", exc_info=True)
+
+
 @main_bp.route('/')
 def index():
     """Home page"""
+    # Ensure an initial admin exists (promote known admin email if present and no admins exist)
+    _ensure_initial_admin()
+
     if 'user_id' not in session:
-        return render_template('index.html')
+        show_pending = request.args.get('pending') in ('1', 'true', 'yes')
+        return render_template('index.html', show_pending=show_pending)
     
     user = User.query.get(session['user_id'])
     if not user:
@@ -91,6 +133,82 @@ def index():
 
     return render_template('dashboard.html', user=user, today=today_summary, daily_report=daily_report)
 
+
+@main_bp.route('/api/daily_view')
+def api_daily_view():
+    """Return JSON for a specific date: summary, meals, activities, and report"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'authentication required'}), 401
+
+    user = User.query.get(session['user_id'])
+    if not user:
+        return jsonify({'error': 'user not found'}), 404
+
+    date_str = request.args.get('date')
+    try:
+        if date_str:
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+        else:
+            date_obj = datetime.utcnow().date()
+    except Exception:
+        date_obj = datetime.utcnow().date()
+
+    # summary
+    summary = get_daily_summary(user.id, date_obj)
+
+    # start/end for DB queries
+    start_dt = datetime.combine(date_obj, datetime.min.time())
+    end_dt = start_dt + timedelta(days=1)
+
+    meals_q = Meal.query.filter(
+        Meal.user_id == user.id,
+        Meal.timestamp >= start_dt,
+        Meal.timestamp < end_dt
+    ).order_by(Meal.timestamp.asc()).all()
+
+    activities_q = Activity.query.filter(
+        Activity.user_id == user.id,
+        Activity.timestamp >= start_dt,
+        Activity.timestamp < end_dt
+    ).order_by(Activity.timestamp.asc()).all()
+
+    # find any saved daily report for that date
+    report = DailyReport.query.filter(
+        DailyReport.user_id == user.id,
+        DailyReport.date >= start_dt,
+        DailyReport.date < end_dt
+    ).order_by(DailyReport.created_at.desc()).first()
+
+    meals = [
+        {
+            'id': m.id,
+            'meal_text': m.meal_text,
+            'total_calories': m.total_calories,
+            'protein': m.protein,
+            'carbs': m.carbs,
+            'fats': m.fats,
+            'timestamp': m.timestamp.isoformat()
+        }
+        for m in meals_q
+    ]
+
+    activities = [
+        {
+            'id': a.id,
+            'activity_text': a.activity_text,
+            'duration': a.duration,
+            'calories_burned': a.calories_burned,
+            'timestamp': a.timestamp.isoformat()
+        }
+        for a in activities_q
+    ]
+
+    report_data = None
+    if report:
+        report_data = {'overview': report.overview, 'advice': report.advice, 'created_at': report.created_at.isoformat()}
+
+    return jsonify({'summary': summary, 'meals': meals, 'activities': activities, 'report': report_data})
+
 @main_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Login page"""
@@ -105,8 +223,29 @@ def login():
         user = User.query.filter_by(email=email).first()
         
         if user and user.check_password(password):
+            # Block login for pending users
+            if getattr(user, 'role', 'user') == 'pending':
+                flash('Your account is awaiting admin approval. You will be notified when approved.', 'error')
+                return render_template('index.html', show_login=True)
+
             session['user_id'] = user.id
-            flash(f'Welcome back, {user.name or user.email}!', 'success')
+
+            # If user was just approved, show a one-time celebration message.
+            try:
+                approved_note = (Notification.query
+                                 .filter_by(recipient_id=user.id, is_read=False)
+                                 .filter(Notification.message.ilike('%approved%'))
+                                 .order_by(Notification.created_at.desc())
+                                 .first())
+                if approved_note:
+                    approved_note.is_read = True
+                    db.session.commit()
+                    flash("Yay! You're in — your account has been approved.", 'success')
+                else:
+                    flash(f'Welcome back, {user.name or user.email}!', 'success')
+            except Exception:
+                db.session.rollback()
+                flash(f'Welcome back, {user.name or user.email}!', 'success')
             return redirect(url_for('main.index'))
         else:
             flash('Invalid email or password', 'error')
@@ -141,16 +280,24 @@ def register():
             return render_template('index.html', show_register=True)
         
         try:
-            # Create new user
+            # Create new user with pending role
             user = User(email=email)
             user.set_password(password)
+            user.role = 'pending'
             db.session.add(user)
             db.session.commit()
-            
-            session['user_id'] = user.id
-            flash('Account created successfully! Please complete your profile.', 'success')
-            return redirect(url_for('main.profile'))
-            
+
+            # Notify all admins internally
+            admins = User.query.filter_by(role='admin').all()
+            if admins:
+                for admin in admins:
+                    note = Notification(recipient_id=admin.id, sender_id=None, message=f"New user registered: {user.email}")
+                    db.session.add(note)
+                db.session.commit()
+
+            flash('Account created. An admin will review your registration shortly.', 'success')
+            return redirect(url_for('main.index', pending=1))
+
         except Exception as e:
             db.session.rollback()
             logger.error(f"Error creating user: {e}")
@@ -186,12 +333,12 @@ def profile():
         weight = request.form.get('weight', type=float)
         height = request.form.get('height', type=float)
         goal = request.form.get('goal', 'maintain')
-        activity_level = request.form.get('activity_level')
+        activity_level = request.form.get('activity_level', 'moderate')
 
         if not all([name, age, gender, weight, height, activity_level]):
-            flash('All fields are required', 'error')
+            flash('All fields are required.', 'error')
             return render_template('profile.html', user=user)
-        
+
         try:
             user.name = name
             user.age = age
@@ -201,7 +348,7 @@ def profile():
             user.activity_level = activity_level
             user.goal = goal
             user.profile_completed = True
-            
+
             db.session.commit()
             flash('Profile saved successfully!', 'success')
             return redirect(url_for('main.index'))
@@ -348,6 +495,7 @@ def add_meal():
     try:
         # Parse meal with AI
         parsed_data = ai_service.parse_meal(meal_text)
+        _log_token_usage('parse_meal', user, ai_service.pop_last_usage())
         
         # Create meal record
         meal = Meal(
@@ -366,7 +514,7 @@ def add_meal():
         
         db.session.add(meal)
         db.session.commit()
-        
+
         flash(f'Meal added successfully! Estimated {meal.total_calories:.0f} calories', 'success')
         
     except Exception as e:
@@ -397,6 +545,7 @@ def add_activity():
     try:
         # Parse activity with AI
         parsed_data = ai_service.parse_activity(activity_text, user.weight, user.age, user.gender)
+        _log_token_usage('parse_activity', user, ai_service.pop_last_usage())
         
         # Create activity record
         activity = Activity(
@@ -411,7 +560,7 @@ def add_activity():
         
         db.session.add(activity)
         db.session.commit()
-        
+
         flash(f'Activity added successfully! Estimated {activity.calories_burned:.0f} calories burned', 'success')
         
     except Exception as e:
@@ -438,6 +587,8 @@ def generate_report():
     if not report:
         flash('Failed to generate report. Try again later.', 'error')
         return redirect(url_for('main.index'))
+
+    _log_token_usage('generate_daily_report', user, ai_service.pop_last_usage())
 
     # Save to DB: replace today's report if exists, otherwise create
     try:
@@ -675,3 +826,114 @@ def delete_activity(activity_id):
         flash('Error deleting activity', 'error')
     
     return redirect(url_for('main.activities'))
+
+
+# --- RBAC / Admin helper routes ---
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Please login first', 'error')
+            return redirect(url_for('main.login'))
+        user = User.query.get(session['user_id'])
+        if not user or getattr(user, 'role', '') != 'admin':
+            flash('Admin access required', 'error')
+            return redirect(url_for('main.index'))
+        return f(*args, **kwargs)
+    return decorated
+
+
+def _ensure_initial_admin():
+    """Promote a known admin email to admin if no admins exist yet."""
+    try:
+        admin_count = User.query.filter_by(role='admin').count()
+        if admin_count == 0:
+            admin_email = 'siddharthraturi12@gmail.com'
+            u = User.query.filter_by(email=admin_email).first()
+            if u:
+                u.role = 'admin'
+                db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+@main_bp.route('/admin')
+@admin_required
+def admin_index():
+    # show pending users and unread notifications
+    pending = User.query.filter_by(role='pending').order_by(User.created_at.asc()).all()
+    notifications = Notification.query.filter_by(recipient_id=session['user_id']).order_by(Notification.created_at.desc()).all()
+    return render_template('admin_pending.html', pending=pending, notifications=notifications)
+
+
+@main_bp.route('/admin/approve/<int:user_id>', methods=['POST'])
+@admin_required
+def admin_approve(user_id):
+    u = User.query.get(user_id)
+    if not u:
+        flash('User not found', 'error')
+        return redirect(url_for('main.admin_index'))
+    try:
+        u.role = 'user'
+        db.session.commit()
+        # notify the user
+        note = Notification(recipient_id=u.id, sender_id=session.get('user_id'), message='Your account has been approved by an admin. You can now log in.')
+        db.session.add(note)
+        db.session.commit()
+        flash('User approved', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error approving user: {e}')
+        flash('Failed to approve user', 'error')
+    return redirect(url_for('main.admin_index'))
+
+
+@main_bp.route('/admin/reject/<int:user_id>', methods=['POST'])
+@admin_required
+def admin_reject(user_id):
+    u = User.query.get(user_id)
+    if not u:
+        flash('User not found', 'error')
+        return redirect(url_for('main.admin_index'))
+    try:
+        db.session.delete(u)
+        db.session.commit()
+        flash('User rejected and removed', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error rejecting user: {e}')
+        flash('Failed to remove user', 'error')
+    return redirect(url_for('main.admin_index'))
+
+
+@main_bp.route('/admin/promote/<int:user_id>', methods=['POST'])
+@admin_required
+def admin_promote(user_id):
+    u = User.query.get(user_id)
+    if not u:
+        flash('User not found', 'error')
+        return redirect(url_for('main.admin_index'))
+    try:
+        u.role = 'admin'
+        db.session.commit()
+        flash('User promoted to admin', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Error promoting user: {e}')
+        flash('Failed to promote user', 'error')
+    return redirect(url_for('main.admin_index'))
+
+
+@main_bp.route('/admin/mark_read/<int:note_id>', methods=['POST'])
+@admin_required
+def admin_mark_read(note_id):
+    n = Notification.query.get(note_id)
+    if not n:
+        return ('', 404)
+    try:
+        n.is_read = True
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+    return ('', 204)
+

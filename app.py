@@ -1,6 +1,6 @@
 import os
 import logging
-from flask import Flask
+from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.orm import DeclarativeBase
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -10,6 +10,7 @@ load_dotenv()
 
 # Set up logging: keep general info but silence very noisy libraries
 logging.basicConfig(level=logging.INFO)
+logging.getLogger("werkzeug").setLevel(logging.ERROR)
 # Quiet noisy HTTP/LLM libraries that log debug-level internals
 logging.getLogger('groq').setLevel(logging.WARNING)
 logging.getLogger('groq._base_client').setLevel(logging.WARNING)
@@ -27,7 +28,16 @@ def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
-    
+    @app.after_request
+    def log_api_calls(response):
+        if not request.path.startswith("/static"):
+            app.logger.info(
+                "API %s %s %s",
+                request.method,
+                request.path,
+                response.status_code
+            )
+        return response
     # Configure the database
     app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DATABASE_URL", "postgresql://localhost/calorie_tracker")
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
@@ -41,9 +51,7 @@ def create_app():
     
     with app.app_context():
         # Import models and routes
-        import models  # noqa: F401
         from routes import main_bp
-        
         # Register blueprints
         app.register_blueprint(main_bp)
         

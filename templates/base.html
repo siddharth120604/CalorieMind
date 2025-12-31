@@ -21,7 +21,7 @@
 </head>
 <body>
     <!-- Top navigation / branding -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark py-2 sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand ms-3" href="{{ url_for('main.index') }}">
                 <i class="fas fa-utensils me-2"></i>Calorie Tracker
@@ -38,6 +38,10 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><a class="dropdown-item" href="{{ url_for('main.profile') }}"><i class="fas fa-user me-2"></i>Profile</a></li>
+                            {% if current_user and current_user.role == 'admin' %}
+                                <li><a class="dropdown-item" href="{{ url_for('main.admin_index') }}"><i class="fas fa-bell me-2"></i>Notifications</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('main.admin_index') }}"><i class="fas fa-shield-alt me-2"></i>Admin</a></li>
+                            {% endif %}
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('main.logout') }}"><i class="fas fa-sign-out-alt me-2"></i>Logout</a></li>
                         </ul>
@@ -98,7 +102,7 @@
     </div>
 
     <!-- Footer -->
-    <footer class="bg-dark text-light mt-5 py-4">
+    <footer class="bg-dark text-light mt-5 py-4 soft-divider">
         <div class="container text-center">
             <p>&copy; 2024 Calorie Tracker. Track your nutrition and fitness journey.</p>
         </div>

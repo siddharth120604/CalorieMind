@@ -18,6 +18,7 @@ class User(db.Model):
     goal = Column(String(200), default='maintain')  # free-text goal
     profile_completed = Column(db.Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+    role = Column(String(20), default='pending')
     
     # Relationships
     meals = db.relationship('Meal', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -94,3 +95,17 @@ class DailyReport(db.Model):
     overview = Column(Text)
     advice = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+
+    id = Column(Integer, primary_key=True)
+    recipient_id = Column(Integer, db.ForeignKey('users.id'), nullable=False)
+    sender_id = Column(Integer, db.ForeignKey('users.id'), nullable=True)
+    message = Column(Text, nullable=False)
+    is_read = Column(db.Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    recipient = db.relationship('User', foreign_keys=[recipient_id], backref='notifications')
+    sender = db.relationship('User', foreign_keys=[sender_id])

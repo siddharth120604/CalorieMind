@@ -3,50 +3,55 @@
 {% block title %}Dashboard - Calorie Tracker{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <h2>
-            <i class="fas fa-chart-line me-2"></i>Dashboard
-        </h2>
-        <p class="text-muted">Track your nutrition and fitness progress</p>
+<div class="page-header">
+    <div>
+        <div class="page-title">
+            <span class="icon-chip"><i class="fas fa-chart-line text-primary"></i></span>
+            <h2 class="mb-0">Dashboard</h2>
+        </div>
+        <p class="page-subtitle">Your daily overview: calories, macros, and trends.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+        <label for="dash-date" class="form-label small text-muted mb-0">View date</label>
+        <input type="date" id="dash-date" class="form-control form-control-sm" style="width:160px;">
     </div>
 </div>
 
 <!-- Today's Summary Cards -->
 <div class="row g-4 mb-5">
     <div class="col-md-3">
-        <div class="card bg-primary">
-            <div class="card-body text-center">
-                <i class="fas fa-fire fa-2x mb-3"></i>
-                <h3 class="mb-1">{{ "%.0f"|format(today.calories_consumed) }}</h3>
-                <p class="mb-0">Calories Consumed</p>
+        <div class="card bg-primary kpi-card">
+            <div class="card-body text-center py-4">
+                <div class="kpi-icon mb-3"><i class="fas fa-fire fa-lg"></i></div>
+                <h3 class="mb-1 kpi-value">{{ "%.0f"|format(today.calories_consumed) }}</h3>
+                <p class="mb-0 kpi-label">Consumed</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-success">
-            <div class="card-body text-center">
-                <i class="fas fa-running fa-2x mb-3"></i>
-                <h3 class="mb-1">{{ "%.0f"|format(today.calories_burned) }}</h3>
-                <p class="mb-0">Calories Burned</p>
+        <div class="card bg-success kpi-card">
+            <div class="card-body text-center py-4">
+                <div class="kpi-icon mb-3"><i class="fas fa-running fa-lg"></i></div>
+                <h3 class="mb-1 kpi-value">{{ "%.0f"|format(today.calories_burned) }}</h3>
+                <p class="mb-0 kpi-label">Burned</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-info">
-            <div class="card-body text-center">
-                <i class="fas fa-balance-scale fa-2x mb-3"></i>
-                <h3 class="mb-1">{{ "%.0f"|format(today.net_calories) }}</h3>
-                <p class="mb-0">Net Calories</p>
+        <div class="card bg-info kpi-card">
+            <div class="card-body text-center py-4">
+                <div class="kpi-icon mb-3"><i class="fas fa-balance-scale fa-lg"></i></div>
+                <h3 class="mb-1 kpi-value">{{ "%.0f"|format(today.net_calories) }}</h3>
+                <p class="mb-0 kpi-label">Net</p>
             </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-warning">
-            <div class="card-body text-center">
-                <i class="fas fa-target fa-2x mb-3"></i>
-                <h3 class="mb-1">{{ "%.0f"|format(user.calculate_tdee()) }}</h3>
-                <p class="mb-0">Daily Goal</p>
+        <div class="card bg-warning kpi-card">
+            <div class="card-body text-center py-4">
+                <div class="kpi-icon mb-3"><i class="fas fa-target fa-lg"></i></div>
+                <h3 class="mb-1 kpi-value">{{ "%.0f"|format(user.calculate_tdee()) }}</h3>
+                <p class="mb-0 kpi-label">Goal</p>
             </div>
         </div>
     </div>
@@ -171,7 +176,6 @@
     </div>
     
     <div class="col-lg-6">
-        <div class="card">
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
@@ -324,5 +328,83 @@ function loadMacroChart() {
         `;
     }
 }
+</script>
+<script>
+// Fetch daily view data for a given date (YYYY-MM-DD) and update dashboard
+function fetchDailyView(dateStr){
+    fetch(`/api/daily_view?date=${dateStr}`)
+        .then(r => r.json())
+        .then(data => {
+            if(data.error){
+                console.error('API error', data.error);
+                return;
+            }
+
+            // Update summary cards
+            const consumedEl = document.querySelector('.card.bg-primary h3');
+            const burnedEl = document.querySelector('.card.bg-success h3');
+            const netEl = document.querySelector('.card.bg-info h3');
+            if(consumedEl) consumedEl.textContent = Number(data.summary.calories_consumed || 0).toFixed(0);
+            if(burnedEl) burnedEl.textContent = Number(data.summary.calories_burned || 0).toFixed(0);
+            if(netEl) netEl.textContent = Number(data.summary.net_calories || 0).toFixed(0);
+
+            // Update hidden macro-data element so loadMacroChart can read it
+            const macroData = document.getElementById('macro-data');
+            if(macroData){
+                macroData.dataset.protein = Number(data.summary.protein || 0).toFixed(2);
+                macroData.dataset.carbs = Number(data.summary.carbs || 0).toFixed(2);
+                macroData.dataset.fats = Number(data.summary.fats || 0).toFixed(2);
+                macroData.dataset.fiber = Number(data.summary.fiber || 0).toFixed(2);
+                macroData.dataset.sugar = Number(data.summary.sugar || 0).toFixed(2);
+                macroData.dataset.sodium = Number(data.summary.sodium || 0).toFixed(2);
+            }
+
+            // Re-render macro chart area
+            const chartCanvas = document.getElementById('macroChart');
+            if(chartCanvas){
+                // clear and re-run loadMacroChart
+                const parent = chartCanvas.parentNode;
+                parent.innerHTML = `<canvas id="macroChart" width="300" height="300"></canvas><div id="macro-caption" class="macro-caption text-center mt-3"></div>`;
+                loadMacroChart();
+            }
+
+            // Update daily report overview/advice
+            const reportArea = document.querySelector('.card.mb-3 .card-header ~ .card-body');
+            if(reportArea){
+                // find the Daily Report card specifically by header text
+                const cards = document.querySelectorAll('.card.mb-3');
+                for(const c of cards){
+                    const header = c.querySelector('.card-header');
+                    if(header && header.textContent && header.textContent.includes('Daily Report')){
+                        const body = c.querySelector('.card-body');
+                        if(body){
+                            if(data.report){
+                                body.innerHTML = `<p class="mb-2"><strong>Overview:</strong> ${data.report.overview}</p><p class="mb-0"><strong>Advice:</strong> ${data.report.advice}</p><hr><div class="text-center mt-2"><form method="POST" action="/generate_report"><button type="submit" class="btn btn-primary">Generate Report</button></form></div>`;
+                            } else {
+                                body.innerHTML = `<p class="mb-2">No daily report generated for this date.</p><hr><div class="text-center mt-2"><form method="POST" action="/generate_report"><button type="submit" class="btn btn-primary">Generate Report</button></form></div>`;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Optionally update lists of meals/activities — left for future UI work
+        })
+        .catch(err => console.error('Error fetching daily view:', err));
+}
+
+// Wire up date input
+document.addEventListener('DOMContentLoaded', function(){
+    const dateInput = document.getElementById('dash-date');
+    if(!dateInput) return;
+    // set default to today (ISO)
+    const today = new Date().toISOString().slice(0,10);
+    dateInput.value = today;
+
+    dateInput.addEventListener('change', function(){
+        const d = dateInput.value;
+        if(d) fetchDailyView(d);
+    });
+});
 </script>
 {% endblock %}

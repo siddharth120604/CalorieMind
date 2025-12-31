@@ -3,6 +3,16 @@
 {% block title %}Meals - Calorie Tracker{% endblock %}
 
 {% block content %}
+<div class="page-header">
+    <div>
+        <div class="page-title">
+            <span class="icon-chip"><i class="fas fa-apple-alt text-primary"></i></span>
+            <h2 class="mb-0">Meals</h2>
+        </div>
+        <p class="page-subtitle">Log meals and track calories + macros.</p>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-lg-8">
         <!-- Add Meal Form -->
@@ -50,7 +60,7 @@
             <div class="card-body">
                 {% if meals %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover align-middle">
                             <thead>
                                 <tr>
                                     <th>Date/Time</th>

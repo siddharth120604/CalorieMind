@@ -3,6 +3,16 @@
 {% block title %}Activities - Calorie Tracker{% endblock %}
 
 {% block content %}
+<div class="page-header">
+    <div>
+        <div class="page-title">
+            <span class="icon-chip"><i class="fas fa-running text-success"></i></span>
+            <h2 class="mb-0">Activities</h2>
+        </div>
+        <p class="page-subtitle">Log workouts and estimate calories burned.</p>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-lg-8">
         <!-- Add Activity Form -->
@@ -39,7 +49,7 @@
             <div class="card-body">
                 {% if activities %}
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover align-middle">
                             <thead>
                                 <tr>
                                     <th>Date/Time</th>
