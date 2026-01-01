@@ -21,8 +21,8 @@ services:
     command: python3 main.py
     ports:
       -  "8080:8080"
-    # env_file:
-    #   - .env
+    env_file:
+      - .env
     depends_on:
       migrate:
         condition: service_completed_successfully

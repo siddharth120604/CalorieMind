@@ -36,27 +36,31 @@ jobs:
 
       - name: Deploy on EC2
         run: |
+          # Copy docker-compose.yml to EC2
+          scp docker-compose.yml ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/caloriemind/
+
+          # Deploy with docker-compose
           ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             set -e
 
-            mkdir -p /home/ubuntu/caloriemind
             cd /home/ubuntu/caloriemind
 
-            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
+            # Create .env file
+            echo "DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}" > .env
             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
             echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
 
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/caloriemind:latest
+            # Pull latest images
+            docker compose pull web
 
-            docker stop caloriemind || true
-            docker rm caloriemind || true
+            # Stop and remove old containers
+            docker compose down
 
-            docker run -d \
-              --name caloriemind \
-              -p 8080:8080 \
-              --env-file .env \
-              --restart unless-stopped \
-              ${{ secrets.DOCKERHUB_USERNAME }}/caloriemind:latest
+            # Start all services (web, db, migrate)
+            docker compose up -d
+
+            # Show running containers
+            docker compose ps
           EOF
 
       - name: Deployment output
