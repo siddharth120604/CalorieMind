@@ -16,7 +16,7 @@ services:
 
   web:
     build: .
-    image: ${{ secrets.DOCKERHUB_USERNAME }}/caloriemind:latest
+    image: ${DOCKERHUB_USERNAME}/caloriemind:latest
     container_name: calorie_tracker_web
     command: python3 main.py
     ports:

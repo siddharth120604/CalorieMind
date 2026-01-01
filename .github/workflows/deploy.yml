@@ -18,9 +18,13 @@ jobs:
           docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
 
       - name: Build image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: docker compose build --pull web
 
       - name: Push image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: docker compose push web
 
       - name: Setup SSH
