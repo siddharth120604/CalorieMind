@@ -5,8 +5,8 @@ services:
     build: .
     container_name: calorie_tracker_migrate
     command: python3 scripts/apply_migrations.py
-    env_file:
-      - .env
+    # env_file:
+    #   - .env
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/calorie_tracker
     depends_on:
@@ -21,8 +21,8 @@ services:
     command: python3 main.py
     ports:
       -  "8080:8080"
-    env_file:
-      - .env
+    # env_file:
+    #   - .env
     depends_on:
       migrate:
         condition: service_completed_successfully
