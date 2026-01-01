@@ -15,8 +15,8 @@ services:
     restart: "no"
 
   web:
-    # build: .
-    image: <dockerhub-username>/caloriemind:latest
+    build: .
+    image: ${{ secrets.DOCKERHUB_USERNAME }}/caloriemind:latest
     container_name: calorie_tracker_web
     command: python3 main.py
     ports:
