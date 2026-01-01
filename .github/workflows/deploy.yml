@@ -54,16 +54,16 @@ jobs:
             echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
 
             # Pull latest images
-            docker compose pull web
+            docker-compose pull web
 
             # Stop and remove old containers
-            docker compose down
+            docker-compose down
 
             # Start all services (web, db, migrate)
-            docker compose up -d
+            docker-compose up -d
 
             # Show running containers
-            docker compose ps
+            docker-compose ps
           EOF
 
       - name: Deployment output
