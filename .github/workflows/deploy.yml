@@ -34,13 +34,15 @@ jobs:
         run: |
           ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
             set -e
+
+            mkdir -p /home/ubuntu/caloriemind
             cd /home/ubuntu/caloriemind
 
             echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
             echo "SECRET_KEY=${{ secrets.SECRET_KEY }}" >> .env
             echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
 
-            docker pull <username>/caloriemind:latest
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/caloriemind:latest
 
             docker stop caloriemind || true
             docker rm caloriemind || true
@@ -50,7 +52,7 @@ jobs:
               -p 8080:8080 \
               --env-file .env \
               --restart unless-stopped \
-              <username>/caloriemind:latest
+              ${{ secrets.DOCKERHUB_USERNAME }}/caloriemind:latest
           EOF
 
       - name: Deployment output
