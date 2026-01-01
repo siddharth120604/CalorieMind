@@ -17,6 +17,9 @@ jobs:
           echo "${{ secrets.DOCKERHUB_TOKEN }}" | \
           docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
 
+      - name: Create dummy .env file
+        run: touch .env
+
       - name: Build image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
