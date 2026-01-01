@@ -18,10 +18,10 @@ jobs:
           docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
 
       - name: Build image
-        run: docker-compose build
+        run: docker compose build --pull web
 
       - name: Push image
-        run: docker-compose push
+        run: docker compose push web
 
       - name: Setup SSH
         run: |
