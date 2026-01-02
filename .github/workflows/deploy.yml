@@ -23,12 +23,12 @@ jobs:
       - name: Build image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: docker compose build --pull web
+        run: docker-compose build --pull web
 
       - name: Push image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: docker compose push web
+        run: docker-compose push web
 
       - name: Setup SSH
         run: |
@@ -53,15 +53,10 @@ jobs:
             if ! command -v docker &> /dev/null; then
               echo "Installing Docker..."
               sudo apt-get update
-              sudo apt-get install -y ca-certificates curl
-              sudo install -m 0755 -d /etc/apt/keyrings
-              sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-              sudo chmod a+r /etc/apt/keyrings/docker.asc
-              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-              sudo apt-get update
-              sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-              sudo usermod -aG docker $USER
-              echo "Docker installed successfully"
+              sudo apt-get install -y docker.io docker-compose
+              sudo systemctl start docker
+              sudo systemctl enable docker
+              sudo usermod -aG docker ubuntu
             fi
 
             cd /home/ubuntu/caloriemind
@@ -72,16 +67,16 @@ jobs:
             echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" >> .env
 
             # Pull latest images
-            docker compose pull web
+            docker-compose pull web
 
             # Stop and remove old containers
-            docker compose down
+            docker-compose down
 
             # Start all services (web, db, migrate)
-            docker compose up -d
+            docker-compose up -d
 
             # Show running containers
-            docker compose ps
+            docker-compose ps
           EOF
 
       - name: Deployment output
