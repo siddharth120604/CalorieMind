@@ -1,1 +1,3 @@
 fix ci for deployments
+remove migrate container use it as script
+sync secrets , see if database_url coming from where .env or compose 
