@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class AIService:
     def __init__(self):
         self.api_key = os.getenv("GROQ_API_KEY", "your_api_key_here")
-        self.model = os.getenv("GROQ_MODEL", "mixtral-8x7b-32768")
+        self.model = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
         print("current api key", self.api_key)
 
         # Token metrics (best-effort; depends on provider returning usage metadata)
