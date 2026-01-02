@@ -4,7 +4,7 @@ services:
   migrate:
     image: ${DOCKERHUB_USERNAME}/caloriemind:latest
     container_name: calorie_tracker_migrate
-    command: python3 scripts/apply_migrations.py
+    command: bash scripts/init_and_migrate.sh
     # env_file:
     #   - .env
     environment:

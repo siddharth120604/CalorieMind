@@ -77,6 +77,13 @@ jobs:
 
             # Show running containers
             sudo docker-compose ps
+            
+            # Show logs if web container failed
+            if ! sudo docker-compose ps | grep -q "calorie_tracker_web.*Up"; then
+              echo "Web container failed! Showing logs:"
+              sudo docker-compose logs web
+              exit 1
+            fi
           EOF
 
       - name: Deployment output
