@@ -23,12 +23,12 @@ jobs:
       - name: Build image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: docker-compose build --pull web
+        run: docker compose build --pull web
 
       - name: Push image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: docker-compose push web
+        run: docker compose push web
 
       - name: Setup SSH
         run: |
