@@ -19,5 +19,5 @@ variable "instance_type" {
 variable "ssh_cidr" {
   description = "CIDR allowed to SSH"
   type        = string
-  default = "122.161.66.71/32"
+  default = "0.0.0.0/0"
 }
