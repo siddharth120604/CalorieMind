@@ -14,6 +14,6 @@ infra/terraform.tfstate
 infra/terraform.tfstate.backup
 infra/*.tfstate
 infra/*.tfstate.backup
-
+/terraform.tfstate
 # Ansible
 *.retry
