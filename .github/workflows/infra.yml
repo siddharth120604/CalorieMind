@@ -1,0 +1,57 @@
+name: Infrastructure Setup
+
+on:
+  workflow_dispatch:
+
+jobs:
+  infra:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Apply
+        run: |
+          cd infra
+          terraform init
+          terraform apply -auto-approve
+          echo "EC2_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
+
+      - name: Install Ansible
+        run: |
+          sudo apt update
+          sudo apt install -y ansible
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $EC2_IP >> ~/.ssh/known_hosts
+
+      - name: Wait for SSH
+        run: |
+          until ssh -o StrictHostKeyChecking=no ubuntu@$EC2_IP "echo SSH ready"; do
+            sleep 5
+          done
+      
+      - name: Update DuckDNS record
+        run: |
+          r echo "Updating DuckDNS..."
+          r curl "https://www.duckdns.org/update?domains=caloriemind&token=${{ secrets.DUCKDNS_TOKEN }}&ip=$EC2_IP"
+
+
+      - name: Generate Ansible inventory
+        run: |
+          cat > ansible/inventory.ini <<EOF
+          [web]
+          $EC2_IP ansible_user=ubuntu
+          EOF
+
+      - name: Run Ansible (Docker + Nginx + HTTPS)
+        run: |
+          ansible-playbook -i ansible/inventory.ini ansible/setup.yml --private-key ~/.ssh/id_rsa
+          ansible-playbook -i ansible/inventory.ini ansible/nginx.yml --private-key ~/.ssh/id_rsa

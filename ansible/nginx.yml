@@ -1,0 +1,56 @@
+- name: Configure Nginx and HTTPS
+  hosts: web
+  become: true
+
+  vars:
+    domain_name: caloriemind.duckdns.org
+
+  tasks:
+    - name: Install Nginx and Certbot
+      apt:
+        name:
+          - nginx
+          - certbot
+          - python3-certbot-nginx
+        state: present
+        update_cache: yes
+
+    - name: Deploy Nginx config
+      template:
+        src: templates/caloriemind.nginx.j2
+        dest: /etc/nginx/sites-available/caloriemind
+      notify: reload nginx
+
+    - name: Enable Nginx site
+      file:
+        src: /etc/nginx/sites-available/caloriemind
+        dest: /etc/nginx/sites-enabled/caloriemind
+        state: link
+        force: yes
+
+    - name: Remove default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Reload Nginx
+      systemd:
+        name: nginx
+        state: reloaded
+
+    - name: Obtain SSL certificate
+      command: >
+        certbot --nginx
+        -d {{ domain_name }}
+        --non-interactive
+        --agree-tos
+        -m youremail@example.com
+        --redirect
+      args:
+        creates: /etc/letsencrypt/live/{{ domain_name }}/fullchain.pem
+
+  handlers:
+    - name: reload nginx
+      systemd:
+        name: nginx
+        state: reloaded
