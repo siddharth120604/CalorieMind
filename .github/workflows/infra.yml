@@ -23,9 +23,14 @@ jobs:
       - name: Terraform Apply
         run: |
           cd infra
-          terraform init
+          terraform init -input=false
           terraform apply -auto-approve
           echo "EC2_IP=$(terraform output -raw ec2_public_ip)" >> $GITHUB_ENV
+
+      - name: Update DuckDNS record
+        run: |
+          echo "Updating DuckDNS..."
+          curl "https://www.duckdns.org/update?domains=caloriemind&token=${{ secrets.DUCKDNS_TOKEN }}&ip=$EC2_IP"
 
       - name: Install Ansible
         run: |
@@ -44,12 +49,6 @@ jobs:
           until ssh -o StrictHostKeyChecking=no ubuntu@$EC2_IP "echo SSH ready"; do
             sleep 5
           done
-      
-      - name: Update DuckDNS record
-        run: |
-          r echo "Updating DuckDNS..."
-          r curl "https://www.duckdns.org/update?domains=caloriemind&token=${{ secrets.DUCKDNS_TOKEN }}&ip=$EC2_IP"
-
 
       - name: Generate Ansible inventory
         run: |
