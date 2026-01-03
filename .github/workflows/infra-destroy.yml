@@ -23,5 +23,5 @@ jobs:
       - name: Terraform Destroy
         run: |
           cd infra
-          terraform init -input=false
+          terraform init -reconfigure -input=false
           terraform destroy -auto-approve
