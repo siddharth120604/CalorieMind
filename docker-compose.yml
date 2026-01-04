@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
 
   migrate:
-    image: ${DOCKERHUB_USERNAME}/caloriemind:latest
+    image: siddharth1206/caloriemind:latest
     container_name: calorie_tracker_migrate
     command: bash scripts/init_and_migrate.sh
     env_file:
@@ -31,7 +31,7 @@ services:
     restart: "no"
 
   web:
-    image: ${DOCKERHUB_USERNAME}/caloriemind:latest
+    image: siddharth1206/caloriemind:latest
     container_name: calorie_tracker_web
     command: gunicorn -w 2 -b 0.0.0.0:8080 main:app
     ports:
