@@ -35,6 +35,7 @@ jobs:
       - name: Deploy on EC2
         run: |
           ssh ${{ secrets.EC2_USER }}@caloriemind.duckdns.org << 'EOF'
+            mkdir -p /home/ubuntu/caloriemind
             set -e
             cd /home/ubuntu/caloriemind
 
