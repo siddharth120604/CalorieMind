@@ -6,14 +6,14 @@ services:
     container_name: calorie_tracker_db
     env_file:              # ← Add this!
       - .env
-    environment:           # These will override .env if needed (optional)
-      POSTGRES_DB: ${POSTGRES_DB:-calorie_tracker}        # fallback value
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      # POSTGRES_PASSWORD comes from .env → most secure
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ${POSTGRES_DB:-calorie_tracker}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
