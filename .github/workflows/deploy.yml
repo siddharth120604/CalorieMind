@@ -38,6 +38,11 @@ jobs:
           echo "POSTGRES_USER is set? -> ${{ secrets.POSTGRES_USER != '' }}"
           echo "POSTGRES_DB is set? -> ${{ secrets.POSTGRES_DB != '' }}"
           echo "POSTGRES_PASSWORD is set? -> ${{ secrets.POSTGRES_PASSWORD != '' }}"
+      - name: Copy project files to EC2
+        run: |
+          scp -o StrictHostKeyChecking=no -r \
+            . \
+            ${{ secrets.EC2_USER }}@caloriemind.duckdns.org:/home/ubuntu/caloriemind
 
 
       - name: Deploy on EC2
