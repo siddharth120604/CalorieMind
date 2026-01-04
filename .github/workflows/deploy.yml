@@ -57,10 +57,10 @@ jobs:
             sed 's/=.*/=***REDACTED***/' .env
             echo "======================================="
 
-            docker compose pull
-            docker compose down
-            docker compose up -d
-            docker compose ps
+            docker-compose pull
+            docker-compose down
+            docker-compose up -d
+            docker-compose ps
           EOF
 
       - name: Deployment success
