@@ -42,7 +42,7 @@ jobs:
             # Update environment variables
             cat > .env <<EOL
             DOCKERHUB_USERNAME=${{ secrets.DOCKERHUB_USERNAME }}
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@db:5432/${{ secrets.POSTGRES_DB }}
             SECRET_KEY=${{ secrets.SECRET_KEY }}
             GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
             GROQ_MODEL=${{ secrets.GROQ_MODEL }}
@@ -53,6 +53,9 @@ jobs:
             SESSION_SECRET=${{ secrets.SESSION_SECRET }}
 
             EOL
+            echo "===== .env (sanitized) ====="
+            sed 's/=.*/=***REDACTED***/' .env
+            echo "============================"
 
             docker compose pull
             docker compose down
