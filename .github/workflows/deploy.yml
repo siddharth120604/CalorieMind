@@ -31,6 +31,14 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H caloriemind.duckdns.org >> ~/.ssh/known_hosts
+      - name: Debug secrets on runner
+        run: |
+          echo "Checking secrets existence (not values)"
+          echo "DOCKERHUB_USERNAME is set? -> ${{ secrets.DOCKERHUB_USERNAME != '' }}"
+          echo "POSTGRES_USER is set? -> ${{ secrets.POSTGRES_USER != '' }}"
+          echo "POSTGRES_DB is set? -> ${{ secrets.POSTGRES_DB != '' }}"
+          echo "POSTGRES_PASSWORD is set? -> ${{ secrets.POSTGRES_PASSWORD != '' }}"
+
 
       - name: Deploy on EC2
         run: |
