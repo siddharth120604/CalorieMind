@@ -35,8 +35,8 @@ jobs:
       - name: Deploy on EC2
         run: |
           scp docker-compose.yml ${{ secrets.EC2_USER }}@caloriemind.duckdns.org:/home/ubuntu/caloriemind/
-          
-          ssh ${{ secrets.EC2_USER }}@caloriemind.duckdns.org << 'EOF'
+
+          ssh ${{ secrets.EC2_USER }}@caloriemind.duckdns.org << EOF
             set -e
             mkdir -p /home/ubuntu/caloriemind
             cd /home/ubuntu/caloriemind
