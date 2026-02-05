@@ -20,6 +20,86 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
+      - name: Get EC2 IP from Terraform State
+        id: get_ip
+        run: |
+          cd infra
+          terraform init -reconfigure -input=false
+          EC2_IP=$(terraform output -raw ec2_public_ip 2>/dev/null || echo "")
+          echo "ec2_ip=$EC2_IP" >> $GITHUB_OUTPUT
+          if [ -n "$EC2_IP" ]; then
+            echo "EC2 IP found: $EC2_IP"
+          else
+            echo "No EC2 IP found in state"
+          fi
+
+      - name: Setup SSH
+        if: steps.get_ip.outputs.ec2_ip != ''
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ steps.get_ip.outputs.ec2_ip }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Backup Database to S3
+        if: steps.get_ip.outputs.ec2_ip != ''
+        run: |
+          echo "=== Backing up database before destroy ==="
+
+          # SSH to EC2 and create dump
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 \
+            ${{ secrets.EC2_USER }}@${{ steps.get_ip.outputs.ec2_ip }} << 'ENDSSH' || echo "SSH failed, skipping backup"
+
+            CONTAINER_NAME="calorie_tracker_db"
+
+            # Check if db container is running
+            if ! sudo docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+                echo "Database container is not running. Skipping backup."
+                exit 0
+            fi
+
+            # Get credentials from .env
+            if [ -f /home/ubuntu/caloriemind/.env ]; then
+                source /home/ubuntu/caloriemind/.env
+            else
+                echo ".env file not found. Skipping backup."
+                exit 0
+            fi
+
+            echo "Creating database dump..."
+            sudo docker exec ${CONTAINER_NAME} pg_dump \
+                -U "${POSTGRES_USER}" \
+                -d "${POSTGRES_DB}" \
+                --no-owner \
+                --no-acl \
+                --clean \
+                --if-exists \
+                > /tmp/Data_dump.sql
+
+            if [ ! -s /tmp/Data_dump.sql ]; then
+                echo "Database dump is empty. Skipping upload."
+                rm -f /tmp/Data_dump.sql
+                exit 0
+            fi
+
+            echo "Dump created: $(du -h /tmp/Data_dump.sql | cut -f1)"
+          ENDSSH
+
+          # Copy dump from EC2 to runner
+          scp -o StrictHostKeyChecking=no \
+            ${{ secrets.EC2_USER }}@${{ steps.get_ip.outputs.ec2_ip }}:/tmp/Data_dump.sql \
+            ./Data_dump.sql 2>/dev/null || echo "No dump file to copy"
+
+          # Upload to S3 if file exists
+          if [ -f ./Data_dump.sql ]; then
+            echo "Uploading dump to S3..."
+            aws s3 cp ./Data_dump.sql s3://caloriemind-db-backups/Data_dump.sql
+            echo "Backup uploaded to s3://caloriemind-db-backups/Data_dump.sql"
+            rm -f ./Data_dump.sql
+          else
+            echo "No dump file found. Proceeding with destroy."
+          fi
+
       - name: Terraform Destroy
         run: |
           cd infra

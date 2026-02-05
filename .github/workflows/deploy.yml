@@ -63,6 +63,9 @@ jobs:
             echo "GROQ_MODEL=${{ secrets.GROQ_MODEL }}" >> .env
             echo "SESSION_SECRET=${{ secrets.SESSION_SECRET }}" >> .env
             echo "DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@db:5432/${{ secrets.POSTGRES_DB }}" >> .env
+            echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+            echo "AWS_DEFAULT_REGION=us-east-1" >> .env
 
             ls -lh .env
             sed 's/=.*/=***REDACTED***/' .env
