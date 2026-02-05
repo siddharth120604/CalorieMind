@@ -31,6 +31,7 @@ jobs:
           echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H caloriemind.duckdns.org >> ~/.ssh/known_hosts
+          
       - name: Debug secrets on runner
         run: |
           echo "Checking secrets existence (not values)"
@@ -38,6 +39,7 @@ jobs:
           echo "POSTGRES_USER is set? -> ${{ secrets.POSTGRES_USER != '' }}"
           echo "POSTGRES_DB is set? -> ${{ secrets.POSTGRES_DB != '' }}"
           echo "POSTGRES_PASSWORD is set? -> ${{ secrets.POSTGRES_PASSWORD != '' }}"
+
       - name: Copy project files to EC2
         run: |
           scp -o StrictHostKeyChecking=no -r \
@@ -63,6 +65,11 @@ jobs:
             echo "GROQ_MODEL=${{ secrets.GROQ_MODEL }}" >> .env
             echo "SESSION_SECRET=${{ secrets.SESSION_SECRET }}" >> .env
             echo "DATABASE_URL=postgresql://${{ secrets.POSTGRES_USER }}:${{ secrets.POSTGRES_PASSWORD }}@db:5432/${{ secrets.POSTGRES_DB }}" >> .env
+
+            # AWS credentials for S3 restore
+            echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env
+            echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env
+            echo "AWS_DEFAULT_REGION=us-east-1" >> .env
 
             ls -lh .env
             sed 's/=.*/=***REDACTED***/' .env

@@ -20,6 +20,53 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H caloriemind.duckdns.org >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Backup database to S3
+        run: |
+          ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@caloriemind.duckdns.org << EOF || echo "SSH connection failed, skipping backup (instance may be down)"
+            set -e
+            cd /home/ubuntu/caloriemind
+
+            # Check if db container is running
+            if ! sudo docker ps --format '{{.Names}}' | grep -q '^calorie_tracker_db$'; then
+              echo "Database container not running, skipping backup"
+              exit 0
+            fi
+
+            # Source environment variables
+            if [ -f .env ]; then
+              export \$(grep -E '^POSTGRES_(USER|PASSWORD|DB)=' .env | xargs)
+            fi
+
+            echo "Creating database backup..."
+            sudo docker exec calorie_tracker_db pg_dump \
+              -U "\${POSTGRES_USER}" \
+              -d "\${POSTGRES_DB}" \
+              --data-only \
+              --no-owner \
+              --no-privileges \
+              > /tmp/caloriemind-backup.sql
+
+            echo "Backup created: \$(ls -lh /tmp/caloriemind-backup.sql)"
+
+            # Upload to S3 using boto3 via Docker
+            sudo docker run --rm \
+              -v /tmp/caloriemind-backup.sql:/tmp/backup.sql:ro \
+              -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+              -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+              ${{ secrets.DOCKERHUB_USERNAME }}/caloriemind:latest \
+              python3 scripts/backup_to_s3.py /tmp/backup.sql
+
+            echo "Backup uploaded to S3 successfully"
+            rm -f /tmp/caloriemind-backup.sql
+          EOF
+
       - name: Terraform Destroy
         run: |
           cd infra
