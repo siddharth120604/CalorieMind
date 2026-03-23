@@ -16,4 +16,4 @@ RUN chmod +x scripts/init_and_migrate.sh
 
 EXPOSE 8080
 
-CMD [ "python3","main.py" ]
+CMD ["python3", "-m", "backend.main"]
