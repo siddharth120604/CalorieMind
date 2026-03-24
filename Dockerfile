@@ -11,8 +11,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Make migration script executable
-RUN chmod +x scripts/init_and_migrate.sh
+# Make scripts executable
+RUN chmod +x scripts/init_and_migrate.sh scripts/restore_from_s3.py
 
 EXPOSE 8080
 
