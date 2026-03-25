@@ -2,10 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install postgresql-client for database restore
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
+# Install PostgreSQL client for database restore
+RUN apt-get update && apt-get install -y postgresql-client && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 
@@ -18,4 +16,4 @@ RUN chmod +x scripts/init_and_migrate.sh scripts/restore_from_s3.py
 
 EXPOSE 8080
 
-CMD [ "python3","main.py" ]
+CMD ["python3", "-m", "backend.main"]

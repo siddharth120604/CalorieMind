@@ -115,3 +115,21 @@ resource "aws_instance" "app" {
     Name = "caloriemind-ec2"
   }
 }
+
+# ------------------
+# S3 Bucket for DB Backups
+# ------------------
+resource "aws_s3_bucket" "db_backups" {
+  bucket = "caloriemind-db-backups"
+
+  tags = {
+    Name = "caloriemind-db-backups"
+  }
+}
+
+resource "aws_s3_bucket_versioning" "db_backups_versioning" {
+  bucket = aws_s3_bucket.db_backups.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}

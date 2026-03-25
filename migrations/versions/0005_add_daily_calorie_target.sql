@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN IF NOT EXISTS daily_calorie_target INTEGER;
+ALTER TABLE users DROP COLUMN IF EXISTS activity_level;

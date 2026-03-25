@@ -1,10 +1,8 @@
-version: "3.9"
-
 services:
   db:
     image: postgres:16
     container_name: calorie_tracker_db
-    env_file:              # ← Add this!
+    env_file:
       - .env
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -20,29 +18,42 @@ services:
     restart: unless-stopped
 
   migrate:
-    image: siddharth1206/caloriemind:latest
+    build: .
     container_name: calorie_tracker_migrate
     command: bash scripts/init_and_migrate.sh
     env_file:
-      - .env               # ← Important!
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
     depends_on:
       db:
         condition: service_healthy
     restart: "no"
 
   web:
-    image: siddharth1206/caloriemind:latest
+    build: .
     container_name: calorie_tracker_web
-    command: gunicorn -w 2 -b 0.0.0.0:8080 main:app
+    command: gunicorn -w 2 -b 0.0.0.0:8080 "backend.main:app"
     ports:
       - "8080:8080"
     env_file:
-      - .env               # ← Important!
+      - .env
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
     depends_on:
       migrate:
         condition: service_completed_successfully
       db:
         condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: calorie_tracker_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - web
     restart: unless-stopped
 
 volumes:

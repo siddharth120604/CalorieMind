@@ -1,121 +1,75 @@
 #!/usr/bin/env python3
 """
-Restores database data from S3 backup if available.
-This script is idempotent - safe to run multiple times.
+Download database dump from S3 if it exists.
+Exit codes:
+  0 - Dump downloaded successfully
+  1 - No dump found in S3 (fresh install)
+  2 - Error occurred
 """
 
 import os
 import sys
-import gzip
-import subprocess
-import tempfile
 
-S3_BUCKET = "caloriemind-terraform-state"
-S3_KEY = "backups/db/caloriemind-latest.sql.gz"
-AWS_REGION = "us-east-1"
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
 
-
-def check_aws_credentials():
-    """Check if AWS credentials are available."""
-    access_key = os.environ.get("AWS_ACCESS_KEY_ID")
-    secret_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
-    return bool(access_key and secret_key)
-
-
-def check_backup_exists(s3_client):
-    """Check if backup file exists in S3."""
-    try:
-        s3_client.head_object(Bucket=S3_BUCKET, Key=S3_KEY)
-        return True
-    except Exception:
-        return False
-
-
-def download_backup(s3_client, local_path):
-    """Download backup from S3."""
-    s3_client.download_file(S3_BUCKET, S3_KEY, local_path)
-
-
-def restore_database(backup_path):
-    """Restore data to PostgreSQL using psql."""
-    pg_host = os.environ.get("POSTGRES_HOST", "db")
-    pg_user = os.environ.get("POSTGRES_USER")
-    pg_db = os.environ.get("POSTGRES_DB")
-    pg_password = os.environ.get("POSTGRES_PASSWORD")
-
-    if not all([pg_user, pg_db, pg_password]):
-        print("[restore] Missing PostgreSQL credentials")
-        return False
-
-    # Decompress and restore
-    with gzip.open(backup_path, "rt") as f:
-        sql_content = f.read()
-
-    env = os.environ.copy()
-    env["PGPASSWORD"] = pg_password
-
-    # Use ON_ERROR_STOP=0 for idempotency (ignore duplicate key errors)
-    result = subprocess.run(
-        [
-            "psql",
-            "-h", pg_host,
-            "-U", pg_user,
-            "-d", pg_db,
-            "-v", "ON_ERROR_STOP=0",
-        ],
-        input=sql_content,
-        text=True,
-        env=env,
-        capture_output=True,
-    )
-
-    if result.returncode != 0 and result.stderr:
-        # Log warnings but don't fail (idempotent restore)
-        print(f"[restore] psql output: {result.stderr[:500]}")
-
-    return True
+S3_BUCKET = "caloriemind-db-backups"
+DUMP_FILE = "Data_dump.sql"
+LOCAL_PATH = "/tmp/Data_dump.sql"
 
 
 def main():
-    print("[restore] Checking for S3 backup...")
+    print("=== Checking S3 for database backup ===")
 
-    # Check AWS credentials
-    if not check_aws_credentials():
-        print("[restore] AWS credentials not set, skipping restore")
-        return 0
+    # Check for AWS credentials
+    aws_key = os.getenv("AWS_ACCESS_KEY_ID")
+    aws_secret = os.getenv("AWS_SECRET_ACCESS_KEY")
+    aws_region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 
-    # Import boto3 only if credentials exist
-    try:
-        import boto3
-    except ImportError:
-        print("[restore] boto3 not installed, skipping restore")
-        return 0
-
-    # Create S3 client
-    s3_client = boto3.client("s3", region_name=AWS_REGION)
-
-    # Check if backup exists
-    if not check_backup_exists(s3_client):
-        print("[restore] No backup found in S3, skipping restore (first deploy?)")
-        return 0
-
-    # Download and restore
-    with tempfile.NamedTemporaryFile(suffix=".sql.gz", delete=False) as tmp:
-        tmp_path = tmp.name
+    if not aws_key or not aws_secret:
+        print("AWS credentials not found. Proceeding with fresh install.")
+        return 1
 
     try:
-        print("[restore] Downloading backup from S3...")
-        download_backup(s3_client, tmp_path)
+        s3 = boto3.client(
+            "s3",
+            aws_access_key_id=aws_key,
+            aws_secret_access_key=aws_secret,
+            region_name=aws_region,
+        )
 
-        print("[restore] Restoring data...")
-        restore_database(tmp_path)
+        # Check if file exists
+        print(f"Checking for s3://{S3_BUCKET}/{DUMP_FILE}...")
+        s3.head_object(Bucket=S3_BUCKET, Key=DUMP_FILE)
 
-        print("[restore] Database restore completed")
-    finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        # File exists, download it
+        print("Backup found! Downloading...")
+        s3.download_file(S3_BUCKET, DUMP_FILE, LOCAL_PATH)
 
-    return 0
+        # Verify download
+        if os.path.exists(LOCAL_PATH) and os.path.getsize(LOCAL_PATH) > 0:
+            size_kb = os.path.getsize(LOCAL_PATH) / 1024
+            print(f"Downloaded successfully: {size_kb:.1f} KB")
+            return 0
+        else:
+            print("Download failed or file is empty.")
+            return 2
+
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "404":
+            print("No backup found in S3. Proceeding with fresh install.")
+            return 1
+        else:
+            print(f"S3 error: {e}")
+            return 2
+
+    except NoCredentialsError:
+        print("AWS credentials invalid. Proceeding with fresh install.")
+        return 1
+
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        return 2
 
 
 if __name__ == "__main__":
