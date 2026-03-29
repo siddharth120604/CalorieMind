@@ -1,0 +1,72 @@
+# Backend API — stateless, scalable
+# 2 replicas = if one dies, the other handles traffic while K8s restarts it
+# RollingUpdate = zero-downtime deploys (new pod starts before old one dies)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: caloriemind
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+
+  # Rolling update strategy — how K8s replaces pods during a deploy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0       # Never have 0 healthy pods during update
+      maxSurge: 1             # Create 1 extra pod before killing old one
+
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: caloriemind-backend:latest
+          imagePullPolicy: Never
+          command: ["gunicorn", "-w", "2", "-b", "0.0.0.0:8080", "backend.main:app"]
+          ports:
+            - containerPort: 8080
+
+          # Env vars from Secret (sensitive) and ConfigMap (non-sensitive)
+          # envFrom loads ALL keys from the referenced resource as env vars
+          envFrom:
+            - secretRef:
+                name: caloriemind-secrets
+            - configMapRef:
+                name: caloriemind-config
+
+          # DATABASE_URL needs to be constructed from individual secret values
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@db.caloriemind.svc.cluster.local:5432/$(POSTGRES_DB)"
+
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+          # readinessProbe — HTTP check on the API
+          # K8s sends a GET request; any 2xx/3xx = healthy
+          # Pod won't receive traffic until this passes
+          readinessProbe:
+            httpGet:
+              path: /api/v1/auth/login
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+
+          # livenessProbe — if this fails 3 times, K8s kills and restarts the pod
+          livenessProbe:
+            httpGet:
+              path: /api/v1/auth/login
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10

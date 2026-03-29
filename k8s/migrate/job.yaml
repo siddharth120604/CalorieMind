@@ -1,0 +1,48 @@
+# Job — runs once to completion, then stops
+# Unlike a Deployment (runs forever), a Job is for one-shot tasks like DB migrations
+# If it fails, K8s retries up to backoffLimit times
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: caloriemind-migrate
+  namespace: caloriemind
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      containers:
+        - name: migrate
+          image: caloriemind-backend:latest
+          imagePullPolicy: Never          # Use locally loaded image (kind)
+          command: ["bash", "scripts/init_and_migrate.sh"]
+          env:
+            # DATABASE_URL is built from secret values
+            # Can't use variable interpolation in K8s env, so we construct it here
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: caloriemind-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: caloriemind-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: caloriemind-secrets
+                  key: POSTGRES_DB
+            # db = the Service name, which K8s resolves via internal DNS
+            - name: DATABASE_URL
+              value: "postgresql://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@db.caloriemind.svc.cluster.local:5432/$(POSTGRES_DB)"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "250m"
+      # Jobs must set restartPolicy to Never or OnFailure
+      # Never = don't restart the container, let the Job's backoffLimit handle retries
+      restartPolicy: Never

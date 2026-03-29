@@ -1,0 +1,18 @@
+# PersistentVolumeClaim — requests disk storage from K8s
+# This is like a Docker volume: data survives pod restarts/crashes
+# Without this, Postgres data disappears when the pod dies
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: caloriemind
+spec:
+  # ReadWriteOnce = only one pod can mount this at a time
+  # (perfect for a single DB instance)
+  # Other options: ReadWriteMany (multiple pods), ReadOnlyMany
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      # How much disk space to reserve
+      storage: 2Gi

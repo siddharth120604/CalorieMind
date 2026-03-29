@@ -1,0 +1,41 @@
+# LocalStack — local AWS services emulator (we only use S3)
+# In production, this gets replaced by real AWS S3 (just change the configmap)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: localstack
+  namespace: caloriemind
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: localstack
+  template:
+    metadata:
+      labels:
+        app: localstack
+    spec:
+      containers:
+        - name: localstack
+          image: localstack/localstack:3.0
+          ports:
+            - containerPort: 4566
+          env:
+            - name: SERVICES
+              value: "s3"
+            - name: DEFAULT_REGION
+              value: "us-east-1"
+          volumeMounts:
+            - name: localstack-storage
+              mountPath: /var/lib/localstack
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      volumes:
+        - name: localstack-storage
+          persistentVolumeClaim:
+            claimName: localstack-pvc

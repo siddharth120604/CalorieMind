@@ -1,0 +1,14 @@
+# Makes frontend reachable at frontend:3000 within the cluster
+# The Ingress routes external / traffic here
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: caloriemind
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 3000
+      targetPort: 3000
+  type: ClusterIP

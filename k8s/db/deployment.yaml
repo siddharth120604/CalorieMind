@@ -1,0 +1,99 @@
+# Deployment — tells K8s "run this container and keep it alive"
+# If the pod crashes, K8s automatically creates a new one
+# This is the equivalent of your docker-compose `db` service
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  namespace: caloriemind
+  # Labels on the Deployment itself (for organizing/filtering)
+  labels:
+    app: db
+spec:
+  # How many copies of this pod to run
+  # Databases = always 1 (multi-replica DB needs StatefulSet, different topic)
+  replicas: 1
+
+  # selector tells the Deployment "manage pods that have these labels"
+  # MUST match template.metadata.labels below — this is how K8s connects them
+  selector:
+    matchLabels:
+      app: db
+
+  # Pod template — the actual container definition
+  template:
+    metadata:
+      # These labels go on every pod created by this Deployment
+      # The Service uses these same labels to find the pods and route traffic
+      labels:
+        app: db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+
+          ports:
+            - containerPort: 5432
+
+          # Environment variables — pulled from the Secret we created
+          # valueFrom + secretKeyRef = "get this value from a Secret"
+          # This is like env_file in docker-compose but more granular
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: caloriemind-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: caloriemind-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: caloriemind-secrets
+                  key: POSTGRES_DB
+
+          # Mount the PVC at Postgres's data directory
+          # This connects the persistent disk (PVC) to the container's filesystem
+          volumeMounts:
+            - name: postgres-storage          # matches volumes[].name below
+              mountPath: /var/lib/postgresql/data
+
+          # Resource limits — PRODUCTION MUST-HAVE
+          # requests = minimum guaranteed (K8s reserves this for the pod)
+          # limits = maximum allowed (pod gets killed if it exceeds memory limit)
+          # Without these, one pod can starve the entire node
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"       # 250 millicores = 0.25 CPU cores
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+
+          # readinessProbe — "is this pod ready to receive traffic?"
+          # K8s won't send traffic to this pod until this passes
+          # For Postgres: pg_isready returns 0 when DB is accepting connections
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 5    # wait 5s before first check
+            periodSeconds: 5          # check every 5s
+
+          # livenessProbe — "is this pod alive?"
+          # If this fails, K8s KILLS the pod and creates a new one
+          # More aggressive than readiness — use higher thresholds
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "postgres"]
+            initialDelaySeconds: 15   # give DB time to start
+            periodSeconds: 10
+
+      # volumes defines what storage is available to mount
+      # This links the PVC (persistent disk) to a name the container can reference
+      volumes:
+        - name: postgres-storage              # referenced by volumeMounts above
+          persistentVolumeClaim:
+            claimName: postgres-pvc           # matches the PVC we created

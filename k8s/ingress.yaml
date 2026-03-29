@@ -1,0 +1,40 @@
+# Ingress — the single entry point for external HTTP traffic
+# Routes requests based on URL path to the right service:
+#   /api/* → web service (backend)
+#   /*     → frontend service (React app)
+#
+# This replaces the nginx proxy_pass in the frontend's nginx.conf
+# In Docker Compose, frontend nginx proxied /api to backend
+# In K8s, the Ingress controller handles this routing instead
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: caloriemind-ingress
+  namespace: caloriemind
+  annotations:
+    # Tell the ingress controller to not rewrite the URL path
+    # /api/v1/meals should hit the backend as /api/v1/meals (not /)
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  # ingressClassName tells K8s which ingress controller to use
+  # kind's nginx ingress controller watches for this
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          # /api goes to backend — order matters, more specific paths first
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 8080
+          # Everything else goes to frontend
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 3000

@@ -1,0 +1,13 @@
+# Persistent storage for LocalStack S3 data
+# Without this, uploaded exports disappear when the pod restarts
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: localstack-pvc
+  namespace: caloriemind
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

@@ -1,0 +1,15 @@
+# Makes the backend reachable at web:8080 within the cluster
+# Load-balances between the 2 web pods automatically
+# The Ingress routes external /api traffic here
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: caloriemind
+spec:
+  selector:
+    app: web
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP

@@ -1,0 +1,14 @@
+# Makes LocalStack reachable at localstack:4566 within the cluster
+# The web pods use this to upload/download S3 exports
+apiVersion: v1
+kind: Service
+metadata:
+  name: localstack
+  namespace: caloriemind
+spec:
+  selector:
+    app: localstack
+  ports:
+    - port: 4566
+      targetPort: 4566
+  type: ClusterIP

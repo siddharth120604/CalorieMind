@@ -1,0 +1,35 @@
+# Service — gives pods a stable DNS name and load balances traffic
+#
+# Problem: Pods are ephemeral. They get random IPs. When a pod dies and
+# K8s creates a new one, it gets a NEW IP. So you can't hardcode pod IPs.
+#
+# Solution: A Service has a fixed DNS name and IP. It routes traffic to
+# whatever pods match its selector, regardless of their IPs.
+#
+# With this Service, any pod in the cluster can reach Postgres at:
+#   db.caloriemind.svc.cluster.local:5432
+# or just:
+#   db:5432 (short form, works within the same namespace)
+#
+# This replaces Docker Compose's automatic container name DNS.
+apiVersion: v1
+kind: Service
+metadata:
+  name: db                    # THIS becomes the DNS name
+  namespace: caloriemind
+spec:
+  # selector finds pods with these labels and routes traffic to them
+  # Must match the labels on the pods (template.metadata.labels in Deployment)
+  selector:
+    app: db
+
+  ports:
+    - port: 5432              # port the Service listens on
+      targetPort: 5432        # port on the container to forward to
+
+  # ClusterIP = internal only, not accessible from outside the cluster
+  # This is the default and correct for databases (never expose DB externally)
+  # Other types:
+  #   NodePort — exposes on every node's IP at a static port (30000-32767)
+  #   LoadBalancer — provisions a cloud load balancer (AWS ALB, etc.)
+  type: ClusterIP
