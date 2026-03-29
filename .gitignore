@@ -17,3 +17,6 @@ infra/*.tfstate.backup
 /terraform.tfstate
 # Ansible
 *.retry
+
+# K8s secrets (contains API keys, passwords)
+k8s/secrets.yaml
