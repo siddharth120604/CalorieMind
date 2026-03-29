@@ -30,6 +30,18 @@ services:
         condition: service_healthy
     restart: "no"
 
+  localstack:
+    image: localstack/localstack:3.0
+    container_name: calorie_tracker_localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=s3
+      - DEFAULT_REGION=us-east-1
+    volumes:
+      - localstack_data:/var/lib/localstack
+    restart: unless-stopped
+
   web:
     build: .
     container_name: calorie_tracker_web
@@ -40,11 +52,18 @@ services:
       - .env
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:${POSTGRES_PORT}/${POSTGRES_DB}
+      - S3_ENDPOINT_URL=http://localstack:4566
+      - S3_PUBLIC_ENDPOINT_URL=http://localhost:4566
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - S3_BUCKET_NAME=caloriemind-exports
     depends_on:
       migrate:
         condition: service_completed_successfully
       db:
         condition: service_healthy
+      localstack:
+        condition: service_started
     restart: unless-stopped
 
   frontend:
@@ -58,3 +77,4 @@ services:
 
 volumes:
   postgres_data:
+  localstack_data:

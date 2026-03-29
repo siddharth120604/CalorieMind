@@ -14,6 +14,8 @@ import Reports from './pages/Reports';
 import ReportDetail from './pages/ReportDetail';
 import Admin from './pages/Admin';
 import BodyMetrics from './pages/BodyMetrics';
+import Inventory from './pages/Inventory';
+import MealPlan from './pages/MealPlan';
 
 export default function App() {
   const dispatch = useAppDispatch();
@@ -41,6 +43,8 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/reports/:id" element={<ReportDetail />} />
+          <Route path="/inventory" element={<Inventory />} />
+          <Route path="/meal-plan" element={<MealPlan />} />
           <Route path="/admin" element={<Admin />} />
         </Route>
 

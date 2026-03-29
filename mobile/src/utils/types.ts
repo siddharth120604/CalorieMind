@@ -151,3 +151,61 @@ export interface AdjustmentSuggestion {
   reasoning?: string;
   message?: string;
 }
+
+export interface ExportResponse {
+  download_url: string;
+  filename: string;
+  format: 'csv' | 'txt';
+}
+
+export interface InventoryItem {
+  id: number;
+  user_id: number;
+  name: string;
+  quantity: string;
+  category: string;
+  calories: number | null;
+  protein: number | null;
+  carbs: number | null;
+  fats: number | null;
+  fiber: number | null;
+  serving_size: string | null;
+  created_at: string | null;
+}
+
+export interface MealPlanItem {
+  inventory_item: string;
+  quantity: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+}
+
+export interface MealPlanMeal {
+  type: string;
+  name: string;
+  items: MealPlanItem[];
+  total_calories: number;
+  total_protein: number;
+  total_carbs: number;
+  total_fats: number;
+  preparation: string;
+}
+
+export interface MealPlanData {
+  meals: MealPlanMeal[];
+  summary: string;
+}
+
+export interface MealPlan {
+  id: number;
+  user_id: number;
+  date: string;
+  plan_data: MealPlanData;
+  total_calories: number;
+  total_protein: number;
+  total_carbs: number;
+  total_fats: number;
+  created_at: string | null;
+}

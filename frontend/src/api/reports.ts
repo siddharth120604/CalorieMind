@@ -18,3 +18,6 @@ export const getMonthlyDataApi = (year?: number, month?: number) =>
 export const getReportsListApi = () => client.get('/reports');
 
 export const getReportDetailApi = (id: number) => client.get(`/reports/${id}`);
+
+export const exportDataApi = (startDate: string, endDate: string, format: 'csv' | 'txt') =>
+  client.post('/reports/export', { start_date: startDate, end_date: endDate, format });

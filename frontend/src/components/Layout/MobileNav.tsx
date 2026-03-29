@@ -5,6 +5,7 @@ const links = [
   { to: '/meals', label: 'Meals', icon: '🍽️' },
   { to: '/activities', label: 'Activity', icon: '🏃' },
   { to: '/body-metrics', label: 'Body', icon: '⚖️' },
+  { to: '/inventory', label: 'Inventory', icon: '🗄️' },
   { to: '/reports', label: 'Reports', icon: '📋' },
 ];
 

@@ -9,6 +9,8 @@ import BodyMetricsScreen from '../screens/BodyMetricsScreen';
 import ReportsScreen from '../screens/ReportsScreen';
 import ReportDetailScreen from '../screens/ReportDetailScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import InventoryScreen from '../screens/InventoryScreen';
+import MealPlanScreen from '../screens/MealPlanScreen';
 import { theme } from '../utils/theme';
 
 const Tab = createBottomTabNavigator();
@@ -21,6 +23,17 @@ function ReportsNavigator() {
       <ReportsStack.Screen name="ReportsList" component={ReportsScreen} />
       <ReportsStack.Screen name="ReportDetail" component={ReportDetailScreen} />
     </ReportsStack.Navigator>
+  );
+}
+
+const InventoryStack = createNativeStackNavigator();
+
+function InventoryNavigator() {
+  return (
+    <InventoryStack.Navigator screenOptions={{ headerShown: false }}>
+      <InventoryStack.Screen name="InventoryList" component={InventoryScreen} />
+      <InventoryStack.Screen name="MealPlan" component={MealPlanScreen} />
+    </InventoryStack.Navigator>
   );
 }
 
@@ -38,6 +51,7 @@ function TabIcon({ label, focused }: { label: string; focused: boolean }) {
     Meals: '🍽️',
     Activities: '🏃',
     Body: '⚖️',
+    Inventory: '🗄️',
     Reports: '📋',
     More: '👤',
   };
@@ -65,6 +79,7 @@ export default function AppNavigator() {
       <Tab.Screen name="Meals" component={MealsScreen} />
       <Tab.Screen name="Activities" component={ActivitiesScreen} />
       <Tab.Screen name="Body" component={BodyMetricsScreen} />
+      <Tab.Screen name="Inventory" component={InventoryNavigator} />
       <Tab.Screen name="Reports" component={ReportsNavigator} />
       <Tab.Screen name="More" component={MoreNavigator} />
     </Tab.Navigator>

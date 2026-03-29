@@ -296,6 +296,90 @@ Keep total output under 3 short paragraphs. No text outside JSON.
             return None
 
 
+    def parse_inventory_item(self, name, quantity):
+        if not self.llm:
+            self._last_usage = {'action': 'parse_inventory_item', 'usage': None}
+            return self._fallback_inventory_data(name)
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """You are a nutrition expert. Given a food or supplement item name and quantity, estimate its nutritional information per standard serving.
+
+Return ONLY valid JSON with this exact structure:
+{{
+    "category": "protein/carb/fat/supplement/vegetable/fruit/dairy/other",
+    "calories": 0,
+    "protein": 0,
+    "carbs": 0,
+    "fats": 0,
+    "fiber": 0,
+    "serving_size": "100g or 1 scoop (30g) etc"
+}}
+
+All nutritional values should be per the serving_size you specify.
+Calories in kcal. Protein, carbs, fats, fiber in grams.
+Choose the most appropriate category for the item.
+"""),
+            ("user", "Item: {name}, Quantity available: {quantity}")
+        ])
+
+        try:
+            chain = prompt | self.llm
+            response = chain.invoke({"name": name, "quantity": quantity})
+            self._record_usage('parse_inventory_item', response)
+            content = self._strip_json_fences(response.content)
+            return json.loads(content)
+        except Exception as e:
+            logger.error(f"Error parsing inventory item with AI: {e}")
+            self._last_usage = {'action': 'parse_inventory_item', 'usage': None}
+            return self._fallback_inventory_data(name)
+
+    def _fallback_inventory_data(self, name):
+        return {
+            "category": "other",
+            "calories": 100,
+            "protein": 5,
+            "carbs": 15,
+            "fats": 3,
+            "fiber": 2,
+            "serving_size": "100g",
+        }
+
+    def generate_meal_plan(self, user_profile, inventory_items, daily_target):
+        if not self.llm:
+            self._last_usage = {'action': 'generate_meal_plan', 'usage': None}
+            return None
+
+        profile_json = json.dumps(user_profile)
+        inventory_json = json.dumps(inventory_items)
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system", """Create a full-day meal plan using ONLY the user's inventory items. Target: {daily_target} kcal (±50).
+Include breakfast, lunch, dinner, and optionally a snack. Keep preparation instructions to one short sentence each. Prioritize protein if goal is muscle gain. Place supplements at appropriate meal times.
+
+Return ONLY valid compact JSON (no extra whitespace):
+{{"meals":[{{"type":"breakfast","name":"Meal name","items":[{{"inventory_item":"name","quantity":"amt","calories":0,"protein":0,"carbs":0,"fats":0}}],"total_calories":0,"total_protein":0,"total_carbs":0,"total_fats":0,"preparation":"Brief instructions"}}],"summary":"One sentence"}}"""),
+            ("user", "Profile: {profile_json}\nInventory: {inventory_json}")
+        ])
+
+        try:
+            llm_with_tokens = self.llm.bind(max_tokens=4096)
+            chain = prompt | llm_with_tokens
+            response = chain.invoke({
+                "profile_json": profile_json,
+                "inventory_json": inventory_json,
+                "daily_target": daily_target,
+            })
+            self._record_usage('generate_meal_plan', response)
+            content = self._strip_json_fences(response.content)
+            parsed = json.loads(content)
+            if isinstance(parsed, dict) and 'meals' in parsed:
+                return parsed
+            return None
+        except Exception as e:
+            logger.error(f"Error generating meal plan with AI: {e}")
+            self._last_usage = {'action': 'generate_meal_plan', 'usage': None}
+            return None
+
     def calculate_calorie_target(self, user_profile):
         if not self.llm:
             return None

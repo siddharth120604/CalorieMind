@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, g
 from backend.middleware.auth import jwt_required
-from backend.services import report_service, summary_service, meal_service, activity_service
+from backend.services import report_service, summary_service, meal_service, activity_service, export_service
 
 reports_bp = Blueprint('reports', __name__)
 
@@ -103,6 +103,38 @@ def monthly_data():
         'calories_burned': [day['calories_burned'] for day in data],
         'net_calories': [day['net_calories'] for day in data],
     }), 200
+
+
+@reports_bp.route('/export', methods=['POST'])
+@jwt_required
+def export_data():
+    data = request.get_json() or {}
+    start_str = data.get('start_date')
+    end_str = data.get('end_date')
+    fmt = data.get('format', 'csv')
+
+    if not start_str or not end_str:
+        return jsonify({'error': 'start_date and end_date are required', 'code': 'VALIDATION_ERROR'}), 400
+
+    start_date = _parse_date(start_str)
+    end_date = _parse_date(end_str)
+    if not start_date or not end_date:
+        return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD', 'code': 'VALIDATION_ERROR'}), 400
+
+    if end_date < start_date:
+        return jsonify({'error': 'end_date must be >= start_date', 'code': 'VALIDATION_ERROR'}), 400
+
+    if (end_date - start_date).days > 90:
+        return jsonify({'error': 'Maximum date range is 90 days', 'code': 'VALIDATION_ERROR'}), 400
+
+    if fmt not in ('csv', 'txt'):
+        return jsonify({'error': 'format must be csv or txt', 'code': 'VALIDATION_ERROR'}), 400
+
+    try:
+        result = export_service.export_data(g.current_user, start_date, end_date, fmt)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({'error': f'Export failed: {str(e)}', 'code': 'EXPORT_ERROR'}), 500
 
 
 @reports_bp.route('', methods=['GET'])

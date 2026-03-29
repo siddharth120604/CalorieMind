@@ -37,6 +37,7 @@ def create_app():
         auth_bp, profile_bp, meals_bp, activities_bp,
         reports_bp, admin_bp, notifications_bp,
         weight_bp, body_metrics_bp, goals_bp, progress_bp,
+        inventory_bp, meal_plans_bp,
     )
     app.register_blueprint(auth_bp, url_prefix='/api/v1/auth')
     app.register_blueprint(profile_bp, url_prefix='/api/v1/profile')
@@ -49,6 +50,8 @@ def create_app():
     app.register_blueprint(body_metrics_bp, url_prefix='/api/v1/body-metrics')
     app.register_blueprint(goals_bp, url_prefix='/api/v1/goals')
     app.register_blueprint(progress_bp, url_prefix='/api/v1/progress')
+    app.register_blueprint(inventory_bp, url_prefix='/api/v1/inventory')
+    app.register_blueprint(meal_plans_bp, url_prefix='/api/v1/meal-plans')
 
     # Request logging
     @app.after_request
