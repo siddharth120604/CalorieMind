@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgres:16
+    container_name: caloriemind_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - backend
+
+  migrate:
+    image: ${DOCKERHUB_USER}/caloriemind-backend:${IMAGE_TAG:-latest}
+    pull_policy: always
+    container_name: caloriemind_migrate
+    command: bash scripts/init_and_migrate.sh
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    networks:
+      - backend
+
+  web:
+    image: ${DOCKERHUB_USER}/caloriemind-backend:${IMAGE_TAG:-latest}
+    pull_policy: always
+    container_name: caloriemind_web
+    command: gunicorn -w 4 -b 0.0.0.0:8080 --timeout 120 --access-logfile - "backend.main:app"
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+      FLASK_ENV: production
+      FLASK_DEBUG: "0"
+      # S3 — real AWS, no LocalStack
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-caloriemind-exports}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - backend
+
+volumes:
+  postgres_data:
+
+networks:
+  backend:
+    driver: bridge

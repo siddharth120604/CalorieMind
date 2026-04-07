@@ -13,11 +13,21 @@ venv/
 tests/
 docs/
 examples/
+plans/
 
 *.log
 *.sqlite3
 *.db
 
+# Frontend / mobile — not needed for backend image
+frontend/
+mobile/
 node_modules/
 dist/
 build/
+
+# K8s manifests
+k8s/
+
+# Root Dockerfile (using backend/Dockerfile instead)
+Dockerfile

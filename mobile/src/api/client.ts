@@ -2,8 +2,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE = __DEV__
-  ? 'https://b645-182-77-74-58.ngrok-free.app/api/v1'
-  : 'https://caloriemind.duckdns.org/api/v1';
+  ? 'https://test-manager-kane-csv-dev.lambdatestinternal.com/api/v1'
+  : 'https://test-manager-kane-csv-dev.lambdatestinternal.com/api/v1';
 
 const client = axios.create({
   baseURL: API_BASE,
